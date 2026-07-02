@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta — InvestAI</title>
+    <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+    <header>
+        <h1>📈 InvestAI</h1>
+        <nav>
+            <a href="usuarios.html">Usuários</a>
+            <a href="movimentacoes.html">Movimentações</a>
+            <a href="investimentos.html">Investimentos</a>
+            <a href="metas.html" class="ativo">Metas</a>
+        </nav>
+    </header>
+    <main>
+        <h2 id="titulo">Nova meta</h2>
+
+        <form id="formulario">
+            <label for="titulo_meta">Título</label>
+            <input type="text" id="titulo_meta" required>
+
+            <label for="valor_alvo">Valor alvo (R$)</label>
+            <input type="number" step="0.01" id="valor_alvo" required>
+
+            <label for="valor_atual">Valor atual (R$)</label>
+            <input type="number" step="0.01" id="valor_atual" value="0">
+
+            <label for="prazo">Prazo</label>
+            <input type="text" id="prazo" placeholder="12/2026" required>
+
+            <label for="usuario_id">Usuário</label>
+            <select id="usuario_id" required></select>
+
+            <div class="botoes-form">
+                <button class="btn" type="submit">Salvar</button>
+                <a class="btn btn-sec" href="metas.html">Cancelar</a>
+            </div>
+        </form>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        const id = getIdDaUrl();
+
+        async function carregarUsuarios(selecionado) {
+            const usuarios = await apiListar("usuarios");
+            const select = document.getElementById("usuario_id");
+            select.innerHTML = "";
+            usuarios.forEach(u => {
+                const op = document.createElement("option");
+                op.value = u.id;
+                op.textContent = u.nome;
+                if (selecionado && u.id === selecionado) op.selected = true;
+                select.appendChild(op);
+            });
+        }
+
+        async function preencher() {
+            if (!id) {
+                await carregarUsuarios();
+                return;
+            }
+            document.getElementById("titulo").textContent = "Editar meta";
+            const m = await apiBuscar("metas", id);
+            document.getElementById("titulo_meta").value = m.titulo;
+            document.getElementById("valor_alvo").value = m.valor_alvo;
+            document.getElementById("valor_atual").value = m.valor_atual;
+            document.getElementById("prazo").value = m.prazo;
+            await carregarUsuarios(m.usuario_id);
+        }
+
+        document.getElementById("formulario").addEventListener("submit", async (ev) => {
+            ev.preventDefault();
+            const dados = {
+                titulo: document.getElementById("titulo_meta").value,
+                valor_alvo: document.getElementById("valor_alvo").value,
+                valor_atual: document.getElementById("valor_atual").value,
+                prazo: document.getElementById("prazo").value,
+                usuario_id: document.getElementById("usuario_id").value,
+            };
+            if (id) {
+                await apiAtualizar("metas", id, dados);
+            } else {
+                await apiCriar("metas", dados);
+            }
+            window.location.href = "metas.html";
+        });
+
+        preencher();
+    </script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metas — InvestAI</title>
+    <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+    <header>
+        <h1>📈 InvestAI</h1>
+        <nav>
+            <a href="usuarios.html">Usuários</a>
+            <a href="movimentacoes.html">Movimentações</a>
+            <a href="investimentos.html">Investimentos</a>
+            <a href="metas.html" class="ativo">Metas</a>
+        </nav>
+    </header>
+    <main>
+        <div class="topo">
+            <h2>Metas</h2>
+            <a class="btn" href="meta_form.html">+ Nova meta</a>
+        </div>
+
+        <div id="conteudo">
+            <p class="vazio">Carregando...</p>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        async function carregar() {
+            const conteudo = document.getElementById("conteudo");
+            try {
+                const [itens, usuarios] = await Promise.all([
+                    apiListar("metas"),
+                    apiListar("usuarios"),
+                ]);
+                const nomes = {};
+                usuarios.forEach(u => nomes[u.id] = u.nome);
+
+                if (!itens.length) {
+                    conteudo.innerHTML = '<p class="vazio">Nenhuma meta cadastrada ainda.</p>';
+                    return;
+                }
+                let html = `<table><thead><tr>
+                    <th>Título</th><th>Alvo</th><th>Atual</th><th>Progresso</th>
+                    <th>Prazo</th><th>Usuário</th><th>Ações</th></tr></thead><tbody>`;
+                itens.forEach(m => {
+                    html += `<tr>
+                        <td>${m.titulo}</td>
+                        <td>${formatarReal(m.valor_alvo)}</td>
+                        <td>${formatarReal(m.valor_atual)}</td>
+                        <td>${m.progresso}%</td>
+                        <td>${m.prazo}</td>
+                        <td>${nomes[m.usuario_id] || "-"}</td>
+                        <td class="acoes">
+                            <a class="btn btn-sec" href="meta_form.html?id=${m.id}">Editar</a>
+                            <button class="btn btn-del" onclick="excluir(${m.id})">Excluir</button>
+                        </td></tr>`;
+                });
+                html += "</tbody></table>";
+                conteudo.innerHTML = html;
+            } catch (e) {
+                conteudo.innerHTML = '<p class="aviso">Erro ao conectar na API. Verifique se o backend está rodando.</p>';
+            }
+        }
+
+        async function excluir(id) {
+            if (!confirm("Excluir esta meta?")) return;
+            await apiExcluir("metas", id);
+            carregar();
+        }
+
+        carregar();
+    </script>
+</body>
+</html>

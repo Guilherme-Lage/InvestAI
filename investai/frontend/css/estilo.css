@@ -1,0 +1,129 @@
+:root {
+    --verde: #00C896;
+    --fundo: #0A1410;
+    --card: #12211B;
+    --borda: #1F3A2E;
+    --texto: #E8F5EF;
+    --cinza: #8AA79A;
+    --vermelho: #ff6b6b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--fundo);
+    color: var(--texto);
+    line-height: 1.5;
+}
+
+header {
+    background: var(--card);
+    padding: 16px 24px;
+    border-bottom: 2px solid var(--verde);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+header h1 { font-size: 20px; color: var(--verde); }
+
+nav a {
+    color: var(--texto);
+    text-decoration: none;
+    margin-right: 16px;
+    font-size: 14px;
+}
+
+nav a:hover { color: var(--verde); }
+nav a.ativo { color: var(--verde); font-weight: 600; }
+
+main { max-width: 900px; margin: 28px auto; padding: 0 20px; }
+
+h2 { margin-bottom: 16px; }
+
+.topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--borda);
+    font-size: 14px;
+}
+
+th { background: var(--card); color: var(--verde); }
+
+.btn {
+    display: inline-block;
+    background: var(--verde);
+    color: #05231A;
+    padding: 9px 16px;
+    border: none;
+    border-radius: 6px;
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.btn:hover { opacity: 0.9; }
+
+.btn-sec {
+    background: transparent;
+    color: var(--verde);
+    border: 1px solid var(--verde);
+}
+
+.btn-del {
+    background: transparent;
+    color: var(--vermelho);
+    border: 1px solid var(--vermelho);
+}
+
+.acoes { display: flex; gap: 8px; }
+
+form { max-width: 480px; margin-top: 16px; }
+
+form label {
+    display: block;
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--cinza);
+}
+
+form input, form select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 4px;
+    border-radius: 6px;
+    border: 1px solid var(--borda);
+    background: var(--card);
+    color: var(--texto);
+    font-size: 14px;
+}
+
+.botoes-form { margin-top: 20px; display: flex; gap: 10px; }
+
+.vazio { margin-top: 16px; color: var(--cinza); }
+
+.tag { padding: 3px 10px; border-radius: 12px; font-size: 12px; }
+.tag-renda { background: #0d3b2a; color: var(--verde); }
+.tag-gasto { background: #3b1414; color: var(--vermelho); }
+
+.aviso {
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+    color: var(--cinza);
+    font-size: 14px;
+}
