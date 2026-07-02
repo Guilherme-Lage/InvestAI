@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investimentos — InvestAI</title>
+    <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+    <header>
+        <h1>📈 InvestAI</h1>
+        <nav>
+            <a href="usuarios.html">Usuários</a>
+            <a href="movimentacoes.html">Movimentações</a>
+            <a href="investimentos.html" class="ativo">Investimentos</a>
+            <a href="metas.html">Metas</a>
+        </nav>
+    </header>
+    <main>
+        <div class="topo">
+            <h2>Investimentos</h2>
+            <a class="btn" href="investimento_form.html">+ Novo investimento</a>
+        </div>
+
+        <div id="conteudo">
+            <p class="vazio">Carregando...</p>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        async function carregar() {
+            const conteudo = document.getElementById("conteudo");
+            try {
+                const [itens, usuarios] = await Promise.all([
+                    apiListar("investimentos"),
+                    apiListar("usuarios"),
+                ]);
+                const nomes = {};
+                usuarios.forEach(u => nomes[u.id] = u.nome);
+
+                if (!itens.length) {
+                    conteudo.innerHTML = '<p class="vazio">Nenhum investimento cadastrado ainda.</p>';
+                    return;
+                }
+                let html = `<table><thead><tr>
+                    <th>Nome</th><th>Tipo</th><th>Aplicado</th><th>Rendimento</th>
+                    <th>Liquidez</th><th>Usuário</th><th>Ações</th></tr></thead><tbody>`;
+                itens.forEach(i => {
+                    html += `<tr>
+                        <td>${i.nome}</td>
+                        <td>${i.tipo}</td>
+                        <td>${formatarReal(i.valor_aplicado)}</td>
+                        <td>${formatarReal(i.rendimento_atual)}</td>
+                        <td>${i.liquidez}</td>
+                        <td>${nomes[i.usuario_id] || "-"}</td>
+                        <td class="acoes">
+                            <a class="btn btn-sec" href="investimento_form.html?id=${i.id}">Editar</a>
+                            <button class="btn btn-del" onclick="excluir(${i.id})">Excluir</button>
+                        </td></tr>`;
+                });
+                html += "</tbody></table>";
+                conteudo.innerHTML = html;
+            } catch (e) {
+                conteudo.innerHTML = '<p class="aviso">Erro ao conectar na API. Verifique se o backend está rodando.</p>';
+            }
+        }
+
+        async function excluir(id) {
+            if (!confirm("Excluir este investimento?")) return;
+            await apiExcluir("investimentos", id);
+            carregar();
+        }
+
+        carregar();
+    </script>
+</body>
+</html>
