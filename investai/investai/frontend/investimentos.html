@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investimentos — InvestAI</title>
+    <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+    <header>
+        <h1>📈 InvestAI</h1>
+        <nav>
+            <a href="usuarios.html">Usuários</a>
+            <a href="movimentacoes.html">Movimentações</a>
+            <a href="investimentos.html" class="ativo">Investimentos</a>
+            <a href="metas.html">Metas</a>
+            <a href="relatorio.html">Relatório</a>
+        </nav>
+    </header>
+    <main>
+        <div class="topo">
+            <h2>Investimentos</h2>
+            <a class="btn" href="investimento_form.html">+ Novo investimento</a>
+        </div>
+
+        <div id="conteudo">
+            <p class="vazio">Carregando...</p>
+        </div>
+
+        <div class="secao">
+            <h3>🏆 Ranking por rendimento</h3>
+            <p class="aviso">
+                Consulta na camada Repository que ordena os investimentos do usuário
+                pelo maior rendimento atual (ORDER BY + LIMIT), com filtro opcional por tipo.
+            </p>
+            <div class="filtros">
+                <div class="campo">
+                    <label for="usuario">Usuário</label>
+                    <select id="usuario"></select>
+                </div>
+                <div class="campo">
+                    <label for="tipoFiltro">Tipo</label>
+                    <input type="text" id="tipoFiltro" placeholder="ex.: CDB (opcional)">
+                </div>
+                <div class="campo">
+                    <label for="limite">Quantos exibir</label>
+                    <input type="number" id="limite" value="5" min="1" max="50">
+                </div>
+                <div class="botoes-filtro">
+                    <button class="btn" id="btnRanking">Ver ranking</button>
+                </div>
+            </div>
+            <div id="conteudoRanking"></div>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        const seletorUsuario = document.getElementById("usuario");
+        let mapaNomes = {};
+
+        async function carregarUsuarios() {
+            const usuarios = await apiListar("usuarios");
+            mapaNomes = {};
+            usuarios.forEach(u => mapaNomes[u.id] = u.nome);
+            seletorUsuario.innerHTML = usuarios
+                .map(u => `<option value="${u.id}">${u.nome}</option>`)
+                .join("");
+            return usuarios;
+        }
+
+        async function carregar() {
+            const conteudo = document.getElementById("conteudo");
+            try {
+                const [itens, usuarios] = await Promise.all([
+                    apiListar("investimentos"),
+                    apiListar("usuarios"),
+                ]);
+                const nomes = {};
+                usuarios.forEach(u => nomes[u.id] = u.nome);
+
+                if (!itens.length) {
+                    conteudo.innerHTML = '<p class="vazio">Nenhum investimento cadastrado ainda.</p>';
+                    return;
+                }
+                let html = `<table><thead><tr>
+                    <th>Nome</th><th>Tipo</th><th>Aplicado</th><th>Rendimento</th>
+                    <th>Liquidez</th><th>Usuário</th><th>Ações</th></tr></thead><tbody>`;
+                itens.forEach(i => {
+                    html += `<tr>
+                        <td>${i.nome}</td>
+                        <td>${i.tipo}</td>
+                        <td>${formatarReal(i.valor_aplicado)}</td>
+                        <td>${formatarReal(i.rendimento_atual)}</td>
+                        <td>${i.liquidez}</td>
+                        <td>${nomes[i.usuario_id] || "-"}</td>
+                        <td class="acoes">
+                            <a class="btn btn-sec" href="investimento_form.html?id=${i.id}">Editar</a>
+                            <button class="btn btn-del" onclick="excluir(${i.id})">Excluir</button>
+                        </td></tr>`;
+                });
+                html += "</tbody></table>";
+                conteudo.innerHTML = html;
+            } catch (e) {
+                conteudo.innerHTML = '<p class="aviso">Erro ao conectar na API. Verifique se o backend está rodando.</p>';
+            }
+        }
+
+        async function verRanking() {
+            const conteudoRanking = document.getElementById("conteudoRanking");
+            const usuarioId = seletorUsuario.value;
+            if (!usuarioId) {
+                conteudoRanking.innerHTML = '<p class="vazio">Cadastre um usuário para ver o ranking.</p>';
+                return;
+            }
+            conteudoRanking.innerHTML = '<p class="vazio">Carregando...</p>';
+            try {
+                const itens = await apiGet(`investimentos/ranking/${usuarioId}`, {
+                    tipo: document.getElementById("tipoFiltro").value,
+                    limite: document.getElementById("limite").value,
+                });
+                if (!itens.length) {
+                    conteudoRanking.innerHTML = '<p class="vazio">Nenhum investimento encontrado para esse filtro.</p>';
+                    return;
+                }
+                let html = `<table><thead><tr>
+                    <th>#</th><th>Nome</th><th>Tipo</th><th>Aplicado</th><th>Rendimento</th>
+                    </tr></thead><tbody>`;
+                itens.forEach((i, idx) => {
+                    html += `<tr>
+                        <td>${idx + 1}º</td>
+                        <td>${i.nome}</td>
+                        <td>${i.tipo}</td>
+                        <td>${formatarReal(i.valor_aplicado)}</td>
+                        <td class="badge-pos">${formatarReal(i.rendimento_atual)}</td>
+                    </tr>`;
+                });
+                html += "</tbody></table>";
+                conteudoRanking.innerHTML = html;
+            } catch (e) {
+                conteudoRanking.innerHTML = '<p class="aviso">Erro ao conectar na API.</p>';
+            }
+        }
+
+        async function excluir(id) {
+            if (!confirm("Excluir este investimento?")) return;
+            await apiExcluir("investimentos", id);
+            carregar();
+        }
+
+        document.getElementById("btnRanking").addEventListener("click", verRanking);
+
+        (async () => {
+            carregar();
+            const usuarios = await carregarUsuarios();
+            if (usuarios.length) await verRanking();
+        })();
+    </script>
+</body>
+</html>
