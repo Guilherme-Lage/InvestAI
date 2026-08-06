@@ -43,16 +43,3 @@ def deletar(id):
     if not ok:
         return jsonify({"erro": "Investimento não encontrado"}), 404
     return jsonify({"mensagem": "Investimento excluído"})
-
-
-@investimento_bp.route("/ranking/<int:usuario_id>", methods=["GET"])
-def ranking(usuario_id):
-    """Ranking dos investimentos do usuário com maior rendimento atual.
-
-    Query params opcionais: limite (padrão 5), tipo (filtra por tipo de
-    investimento, ex.: 'CDB').
-    """
-    limite = request.args.get("limite", 5, type=int)
-    tipo = request.args.get("tipo")
-    itens = InvestimentoService.ranking_por_rendimento(usuario_id, limite=limite, tipo=tipo)
-    return jsonify([i.to_dict() for i in itens])

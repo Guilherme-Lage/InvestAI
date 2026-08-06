@@ -45,15 +45,3 @@ class UsuarioService:
     @staticmethod
     def buscar_por_email(email):
         return UsuarioRepository.buscar_por_email(email)
-
-    @staticmethod
-    def listar_por_perfil(perfil_risco):
-        return UsuarioRepository.listar_por_perfil(perfil_risco)
-
-    @staticmethod
-    def buscar_com_estatisticas(termo=None):
-        return UsuarioRepository.buscar_com_estatisticas(termo)
-
-    @staticmethod
-    def relatorio_financeiro(usuario_id):
-        return UsuarioRepository.relatorio_financeiro(usuario_id)

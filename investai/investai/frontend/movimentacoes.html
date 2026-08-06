@@ -14,7 +14,6 @@
             <a href="movimentacoes.html" class="ativo">Movimentações</a>
             <a href="investimentos.html">Investimentos</a>
             <a href="metas.html">Metas</a>
-            <a href="relatorio.html">Relatório</a>
         </nav>
     </header>
     <main>
@@ -23,48 +22,6 @@
             <a class="btn" href="movimentacao_form.html">+ Nova movimentação</a>
         </div>
 
-        <p class="aviso">
-            Extrato do usuário com filtros por tipo e por período, e ordenação por
-            data ou valor — consulta feita na camada Repository com WHERE e ORDER BY.
-        </p>
-
-        <div class="filtros">
-            <div class="campo">
-                <label for="usuario">Usuário</label>
-                <select id="usuario"></select>
-            </div>
-            <div class="campo">
-                <label for="tipo">Tipo</label>
-                <select id="tipo">
-                    <option value="">Todos</option>
-                    <option value="renda">Renda</option>
-                    <option value="gasto">Gasto</option>
-                </select>
-            </div>
-            <div class="campo">
-                <label for="dataInicio">De</label>
-                <input type="date" id="dataInicio">
-            </div>
-            <div class="campo">
-                <label for="dataFim">Até</label>
-                <input type="date" id="dataFim">
-            </div>
-            <div class="campo">
-                <label for="ordenar">Ordenar por</label>
-                <select id="ordenar">
-                    <option value="data_desc">Data (mais recente)</option>
-                    <option value="data_asc">Data (mais antiga)</option>
-                    <option value="valor_desc">Valor (maior)</option>
-                    <option value="valor_asc">Valor (menor)</option>
-                </select>
-            </div>
-            <div class="botoes-filtro">
-                <button class="btn" id="btnFiltrar">Filtrar</button>
-            </div>
-        </div>
-
-        <div id="saldoResumo"></div>
-
         <div id="conteudo">
             <p class="vazio">Carregando...</p>
         </div>
@@ -72,45 +29,18 @@
 
     <script src="js/api.js"></script>
     <script>
-        const seletorUsuario = document.getElementById("usuario");
-        let mapaNomes = {};
-
-        async function carregarUsuarios() {
-            const usuarios = await apiListar("usuarios");
-            mapaNomes = {};
-            usuarios.forEach(u => mapaNomes[u.id] = u.nome);
-            seletorUsuario.innerHTML = usuarios
-                .map(u => `<option value="${u.id}">${u.nome}</option>`)
-                .join("");
-            return usuarios;
-        }
-
         async function carregar() {
             const conteudo = document.getElementById("conteudo");
-            const saldoResumo = document.getElementById("saldoResumo");
-            const usuarioId = seletorUsuario.value;
-            if (!usuarioId) {
-                conteudo.innerHTML = '<p class="vazio">Cadastre um usuário para ver o extrato.</p>';
-                return;
-            }
-
-            const filtros = {
-                tipo: document.getElementById("tipo").value,
-                data_inicio: document.getElementById("dataInicio").value,
-                data_fim: document.getElementById("dataFim").value,
-                ordenar: document.getElementById("ordenar").value,
-            };
-
             try {
-                const resultado = await apiGet(`movimentacoes/extrato/${usuarioId}`, filtros);
-                const itens = resultado.itens || [];
-
-                const saldoClasse = resultado.saldo >= 0 ? "badge-pos" : "badge-neg";
-                saldoResumo.innerHTML = `<p class="aviso">Saldo total do usuário:
-                    <span class="${saldoClasse}">${formatarReal(resultado.saldo)}</span></p>`;
+                const [itens, usuarios] = await Promise.all([
+                    apiListar("movimentacoes"),
+                    apiListar("usuarios"),
+                ]);
+                const nomes = {};
+                usuarios.forEach(u => nomes[u.id] = u.nome);
 
                 if (!itens.length) {
-                    conteudo.innerHTML = '<p class="vazio">Nenhuma movimentação encontrada para esse filtro.</p>';
+                    conteudo.innerHTML = '<p class="vazio">Nenhuma movimentação cadastrada ainda.</p>';
                     return;
                 }
                 let html = `<table><thead><tr>
@@ -125,7 +55,7 @@
                         <td>${tag}</td>
                         <td>${formatarReal(m.valor)}</td>
                         <td>${m.data}</td>
-                        <td>${mapaNomes[m.usuario_id] || "-"}</td>
+                        <td>${nomes[m.usuario_id] || "-"}</td>
                         <td class="acoes">
                             <a class="btn btn-sec" href="movimentacao_form.html?id=${m.id}">Editar</a>
                             <button class="btn btn-del" onclick="excluir(${m.id})">Excluir</button>
@@ -144,18 +74,7 @@
             carregar();
         }
 
-        document.getElementById("btnFiltrar").addEventListener("click", carregar);
-        seletorUsuario.addEventListener("change", carregar);
-
-        (async () => {
-            const usuarios = await carregarUsuarios();
-            if (usuarios.length) {
-                await carregar();
-            } else {
-                document.getElementById("conteudo").innerHTML =
-                    '<p class="vazio">Cadastre um usuário para ver o extrato.</p>';
-            }
-        })();
+        carregar();
     </script>
 </body>
 </html>

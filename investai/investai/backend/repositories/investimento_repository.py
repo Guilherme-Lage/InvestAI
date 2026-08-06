@@ -16,17 +16,3 @@ class InvestimentoRepository:
             .scalar()
         )
         return total or 0.0
-
-    @staticmethod
-    def ranking_por_rendimento(usuario_id, limite=5, tipo=None):
-        """Ranking dos investimentos do usuário ordenados pelo maior
-        rendimento atual (WHERE + ORDER BY + LIMIT), com filtro opcional
-        por tipo de investimento.
-        """
-        consulta = Investimento.query.filter(Investimento.usuario_id == usuario_id)
-
-        if tipo:
-            consulta = consulta.filter(Investimento.tipo == tipo)
-
-        consulta = consulta.order_by(Investimento.rendimento_atual.desc()).limit(limite)
-        return consulta.all()

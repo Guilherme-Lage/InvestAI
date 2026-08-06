@@ -41,12 +41,3 @@ def deletar(id):
     if not ok:
         return jsonify({"erro": "Meta não encontrada"}), 404
     return jsonify({"mensagem": "Meta excluída"})
-
-
-@meta_bp.route("/status/<int:usuario_id>", methods=["GET"])
-def por_status(usuario_id):
-    """Lista as metas do usuário filtradas por status (concluida |
-    em_andamento), ordenadas por prazo. Query param: status."""
-    status = request.args.get("status", "em_andamento")
-    itens = MetaService.listar_por_status(usuario_id, status=status)
-    return jsonify([i.to_dict() for i in itens])

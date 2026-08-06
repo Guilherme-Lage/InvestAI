@@ -7,11 +7,10 @@ Investimentos e Metas.
 ## Telas
 
 - index.html — página inicial
-- usuarios.html / usuario_form.html — CRUD de usuários + filtro por perfil de risco
-- movimentacoes.html / movimentacao_form.html — CRUD de movimentações + extrato com filtros (tipo, período) e ordenação
-- investimentos.html / investimento_form.html — CRUD de investimentos + ranking por rendimento
-- metas.html / meta_form.html — CRUD de metas + filtro por status (em andamento / concluídas)
-- relatorio.html — relatório financeiro consolidado do usuário + busca de usuários com estatísticas
+- usuarios.html / usuario_form.html — listar e cadastrar/editar usuários
+- movimentacoes.html / movimentacao_form.html — listar e cadastrar/editar movimentações
+- investimentos.html / investimento_form.html — listar e cadastrar/editar investimentos
+- metas.html / meta_form.html — listar e cadastrar/editar metas
 
 ## Como usar
 

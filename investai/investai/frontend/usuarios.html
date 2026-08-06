@@ -14,34 +14,12 @@
             <a href="movimentacoes.html">Movimentações</a>
             <a href="investimentos.html">Investimentos</a>
             <a href="metas.html">Metas</a>
-            <a href="relatorio.html">Relatório</a>
         </nav>
     </header>
     <main>
         <div class="topo">
             <h2>Usuários</h2>
             <a class="btn" href="usuario_form.html">+ Novo usuário</a>
-        </div>
-
-        <p class="aviso">
-            Filtre os usuários pelo perfil de risco — consulta com WHERE na camada
-            Repository. Para busca por nome/e-mail com estatísticas, veja a tela
-            <a href="relatorio.html" style="color: var(--verde);">Relatório</a>.
-        </p>
-
-        <div class="filtros">
-            <div class="campo">
-                <label for="perfil">Perfil de risco</label>
-                <select id="perfil">
-                    <option value="">Todos</option>
-                    <option value="conservador">Conservador</option>
-                    <option value="moderado">Moderado</option>
-                    <option value="arrojado">Arrojado</option>
-                </select>
-            </div>
-            <div class="botoes-filtro">
-                <button class="btn" id="btnFiltrar">Filtrar</button>
-            </div>
         </div>
 
         <div id="conteudo">
@@ -54,10 +32,7 @@
         async function carregar() {
             const conteudo = document.getElementById("conteudo");
             try {
-                const perfil = document.getElementById("perfil").value;
-                const usuarios = perfil
-                    ? await apiGet(`usuarios/perfil/${perfil}`)
-                    : await apiListar("usuarios");
+                const usuarios = await apiListar("usuarios");
                 if (!usuarios.length) {
                     conteudo.innerHTML = '<p class="vazio">Nenhum usuário cadastrado ainda.</p>';
                     return;
@@ -88,8 +63,6 @@
             await apiExcluir("usuarios", id);
             carregar();
         }
-
-        document.getElementById("btnFiltrar").addEventListener("click", carregar);
 
         carregar();
     </script>

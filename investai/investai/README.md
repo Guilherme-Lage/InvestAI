@@ -2,9 +2,8 @@
 
 Repositório do projeto **InvestAI**, um assistente financeiro que orienta usuários
 iniciantes e intermediários. O projeto está dividido em `frontend` (interface web) e
-`backend` (API em Flask), implementando o CRUD básico das Models do domínio e,
-além disso, um conjunto de **funcionalidades avançadas** (consultas com filtros,
-ordenações, JOINs entre tabelas e relatórios) encapsuladas na camada **Repository**.
+`backend` (API em Flask), e implementa o CRUD completo das principais Models do domínio,
+com telas para cadastrar, listar, editar e excluir os dados chamando as rotas da API.
 
 ## Estrutura do repositório
 
@@ -16,7 +15,6 @@ investai/
 │   ├── movimentacoes.html / movimentacao_form.html
 │   ├── investimentos.html / investimento_form.html
 │   ├── metas.html / meta_form.html
-│   ├── relatorio.html             → dashboard com relatório financeiro e busca de usuários
 │   ├── css/estilo.css
 │   └── js/api.js
 └── backend/                       → API Web em Flask
@@ -30,25 +28,17 @@ investai/
         └── create_database.sql    → script de criação do banco e tabelas
 ```
 
-## Arquitetura
+## Arquitetura (mesma nas duas partes)
 
-O backend segue quatro camadas:
-
-- **Controllers** — recebem as requisições HTTP (Blueprints do Flask) e devolvem JSON.
-- **Services** — implementam os casos de uso, um método por funcionalidade, chamando
-  a Model (CRUD básico) ou o Repository (consultas avançadas).
-- **Models** — representam as entidades do domínio e o CRUD básico (herdando de
-  `ModeloBase`, que usa Flask-SQLAlchemy).
-- **Repositories** — concentram consultas específicas que vão além do CRUD básico:
-  filtros (`WHERE`), buscas (`LIKE`), ordenações (`ORDER BY`), junções entre tabelas
-  (`JOIN`) e agregações (`SUM`/`COUNT`), escritas com SQLAlchemy na camada de acesso
-  a dados.
-
-O frontend consome essas rotas por meio de chamadas `fetch` centralizadas em
-`js/api.js` (funções `apiListar`, `apiBuscar`, `apiCriar`, `apiAtualizar`,
-`apiExcluir` para o CRUD, e `apiGet` para as consultas avançadas com parâmetros).
+O backend segue quatro camadas. Os **controllers** recebem as requisições e retornam
+JSON; os **services** implementam os casos de uso; as **models** representam as
+entidades e o CRUD básico (herdando de `Model` do SQLAlchemy); e os **repositories**
+concentram consultas específicas, como saldo do usuário e total aplicado. O frontend
+consome essas rotas por meio de chamadas `fetch` centralizadas em `js/api.js`.
 
 ## Models implementadas
+
+Baseadas na modelagem de domínio já entregue do InvestAI:
 
 - **Usuario** — nome, email, perfil_risco, renda_mensal. Entidade central.
 - **Movimentacao** — descricao, tipo (renda/gasto), valor, data. Chave estrangeira para Usuario.
@@ -56,24 +46,9 @@ O frontend consome essas rotas por meio de chamadas `fetch` centralizadas em
 - **Meta** — titulo, valor_alvo, valor_atual, prazo, com progresso calculado. Chave estrangeira para Usuario.
 
 Todas herdam de `ModeloBase`, que fornece os métodos de criar (`salvar`), listar,
-buscar, atualizar e deletar (CRUD básico).
+buscar, atualizar e deletar.
 
-## Repositories e consultas avançadas implementadas
-
-Cada Repository concentra o acesso a dados que vai além do CRUD básico:
-
-| Repository | Método | Consulta | Descrição |
-|---|---|---|---|
-| `UsuarioRepository` | `buscar_com_estatisticas(termo)` | `LIKE` + `JOIN` (3 tabelas) + `GROUP BY` + `ORDER BY` | Busca usuários por nome/e-mail e retorna, para cada um, a quantidade de movimentações, investimentos, metas e o total investido. |
-| `UsuarioRepository` | `relatorio_financeiro(usuario_id)` | Agregações (`SUM`/`COUNT`) combinando Usuario + Movimentacao + Investimento + Meta | Relatório consolidado: total de rendas, total de gastos, saldo, total investido, rendimento total, patrimônio total e progresso das metas. |
-| `UsuarioRepository` | `listar_por_perfil(perfil_risco)` | `WHERE` + `ORDER BY` | Lista usuários filtrados por perfil de risco. |
-| `MovimentacaoRepository` | `extrato(usuario_id, tipo, data_inicio, data_fim, ordenar)` | `WHERE` combinável (tipo e intervalo de datas) + `ORDER BY` configurável | Extrato de movimentações do usuário com filtros e ordenação. |
-| `InvestimentoRepository` | `ranking_por_rendimento(usuario_id, limite, tipo)` | `WHERE` + `ORDER BY ... DESC` + `LIMIT` | Ranking dos investimentos do usuário com maior rendimento atual. |
-| `MetaRepository` | `listar_por_status(usuario_id, status)` | `WHERE` (comparação `valor_atual` x `valor_alvo`) + `ORDER BY` | Lista metas do usuário filtradas por status (concluída / em andamento), ordenadas por prazo. |
-
-## Rotas da API
-
-### CRUD básico (por Model)
+## Rotas da API (CRUD por Model)
 
 Troque `<recurso>` por `usuarios`, `movimentacoes`, `investimentos` ou `metas`:
 
@@ -85,27 +60,10 @@ Troque `<recurso>` por `usuarios`, `movimentacoes`, `investimentos` ou `metas`:
 | PUT | `/api/<recurso>/<id>` | Atualizar |
 | DELETE | `/api/<recurso>/<id>` | Excluir |
 
-### Funcionalidades avançadas (Repository + procedures de consulta)
-
-| Método | Rota | Query params | Ação |
-|--------|------|---------------|------|
-| GET | `/api/usuarios/busca` | `termo` (opcional) | Busca usuários por nome/e-mail com estatísticas agregadas (JOIN). |
-| GET | `/api/usuarios/perfil/<perfil_risco>` | — | Lista usuários por perfil de risco. |
-| GET | `/api/usuarios/<id>/relatorio` | — | Relatório financeiro consolidado do usuário. |
-| GET | `/api/movimentacoes/extrato/<usuario_id>` | `tipo`, `data_inicio`, `data_fim`, `ordenar` | Extrato filtrado e ordenável de movimentações. |
-| GET | `/api/investimentos/ranking/<usuario_id>` | `limite`, `tipo` | Ranking de investimentos por rendimento. |
-| GET | `/api/metas/status/<usuario_id>` | `status` (`concluida` \| `em_andamento`) | Metas filtradas por status, ordenadas por prazo. |
-
 ## Funcionalidades (telas)
 
-- **Usuários** — CRUD completo + filtro por perfil de risco.
-- **Movimentações** — CRUD completo + extrato com filtros (tipo, período) e ordenação (data/valor).
-- **Investimentos** — CRUD completo + ranking por rendimento (com filtro por tipo e limite de itens).
-- **Metas** — CRUD completo + abas de filtro por status (todas / em andamento / concluídas).
-- **Relatório** (nova tela) — dashboard com o relatório financeiro consolidado do
-  usuário selecionado e busca de usuários com estatísticas agregadas.
-
-Cada tela chama as rotas correspondentes da API por meio de `js/api.js`.
+Para cada Model existem telas de listagem e de formulário (cadastrar e editar no mesmo
+arquivo), além da exclusão com confirmação. Cada tela chama as rotas CRUD da API.
 
 ## Como executar o projeto
 
@@ -118,12 +76,8 @@ python app.py
 ```
 
 A API sobe em `http://127.0.0.1:5000`. O banco SQLite (`investai.db`) é criado
-automaticamente na primeira execução, já com as tabelas do domínio. O arquivo
-`database/create_database.sql` traz o script equivalente para MySQL/MariaDB, caso o
-grupo prefira rodar em um banco relacional completo (basta trocar
-`SQLALCHEMY_DATABASE_URI` em `app.py`, por exemplo para
-`mysql+pymysql://usuario:senha@localhost/investai`, e instalar o driver
-`PyMySQL`).
+automaticamente na primeira execução. O arquivo `database/create_database.sql` traz o
+script equivalente para MySQL/MariaDB.
 
 ### 2. Frontend
 
