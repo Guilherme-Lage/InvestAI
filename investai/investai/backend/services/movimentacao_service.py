@@ -54,9 +54,3 @@ class MovimentacaoService:
         rendas = MovimentacaoRepository.somar_por_tipo(usuario_id, "renda")
         gastos = MovimentacaoRepository.somar_por_tipo(usuario_id, "gasto")
         return rendas - gastos
-
-    @staticmethod
-    def extrato(usuario_id, tipo=None, data_inicio=None, data_fim=None, ordenar="data_desc"):
-        return MovimentacaoRepository.extrato(
-            usuario_id, tipo=tipo, data_inicio=data_inicio, data_fim=data_fim, ordenar=ordenar
-        )

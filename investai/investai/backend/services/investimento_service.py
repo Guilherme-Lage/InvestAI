@@ -55,7 +55,3 @@ class InvestimentoService:
     @staticmethod
     def total_aplicado(usuario_id):
         return InvestimentoRepository.total_aplicado(usuario_id)
-
-    @staticmethod
-    def ranking_por_rendimento(usuario_id, limite=5, tipo=None):
-        return InvestimentoRepository.ranking_por_rendimento(usuario_id, limite=limite, tipo=tipo)

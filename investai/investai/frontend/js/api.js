@@ -9,21 +9,6 @@ async function apiListar(recurso) {
     return resp.json();
 }
 
-// Faz um GET simples em qualquer rota da API (usado pelas consultas
-// avançadas: extrato, ranking, relatório, busca, status), com suporte
-// a query params opcionais.
-async function apiGet(caminho, params) {
-    let url = `${API_URL}/${caminho}`;
-    if (params) {
-        const query = new URLSearchParams(
-            Object.entries(params).filter(([, v]) => v !== null && v !== undefined && v !== "")
-        ).toString();
-        if (query) url += `?${query}`;
-    }
-    const resp = await fetch(url);
-    return resp.json();
-}
-
 async function apiBuscar(recurso, id) {
     const resp = await fetch(`${API_URL}/${recurso}/${id}`);
     return resp.json();

@@ -43,26 +43,3 @@ def deletar(id):
     if not ok:
         return jsonify({"erro": "Movimentação não encontrada"}), 404
     return jsonify({"mensagem": "Movimentação excluída"})
-
-
-@movimentacao_bp.route("/extrato/<int:usuario_id>", methods=["GET"])
-def extrato(usuario_id):
-    """Extrato de movimentações do usuário com filtros por tipo e por
-    intervalo de datas, e ordenação configurável.
-
-    Query params opcionais: tipo (renda|gasto), data_inicio, data_fim,
-    ordenar (data_asc|data_desc|valor_asc|valor_desc).
-    """
-    tipo = request.args.get("tipo")
-    data_inicio = request.args.get("data_inicio")
-    data_fim = request.args.get("data_fim")
-    ordenar = request.args.get("ordenar", "data_desc")
-
-    itens = MovimentacaoService.extrato(
-        usuario_id, tipo=tipo, data_inicio=data_inicio, data_fim=data_fim, ordenar=ordenar
-    )
-    saldo = MovimentacaoService.saldo_do_usuario(usuario_id)
-    return jsonify({
-        "itens": [i.to_dict() for i in itens],
-        "saldo": saldo,
-    })

@@ -53,7 +53,3 @@ class MetaService:
     @staticmethod
     def listar_concluidas(usuario_id):
         return MetaRepository.listar_concluidas(usuario_id)
-
-    @staticmethod
-    def listar_por_status(usuario_id, status="em_andamento"):
-        return MetaRepository.listar_por_status(usuario_id, status=status)
