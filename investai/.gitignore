@@ -1,0 +1,11 @@
+# Python / Flask (backend)
+**/__pycache__/
+*.pyc
+backend/instance/
+.venv/
+venv/
+
+# Sistema operacional / editor
+.DS_Store
+Thumbs.db
+.vscode/

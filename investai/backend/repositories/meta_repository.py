@@ -30,3 +30,9 @@ class MetaRepository:
             consulta = consulta.filter(Meta.valor_atual < Meta.valor_alvo)
 
         return consulta.order_by(Meta.prazo.asc()).all()
+
+    @staticmethod
+    def buscar_reserva_emergencia(usuario_id):
+        """Retorna a meta de reserva de emergência do usuário (RF14/RF15),
+        se existir."""
+        return Meta.query.filter_by(usuario_id=usuario_id, tipo="reserva_emergencia").first()
