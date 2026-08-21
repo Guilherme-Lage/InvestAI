@@ -11,7 +11,7 @@ class CalcularScoreFinanceiroService:
     de metas e controle de gastos (limites de categoria)."""
 
     def executar(self, usuario_id):
-        usuario = Usuario.buscar(usuario_id)
+        usuario = Usuario.buscar_por_id(usuario_id)
         if not usuario:
             return None
 

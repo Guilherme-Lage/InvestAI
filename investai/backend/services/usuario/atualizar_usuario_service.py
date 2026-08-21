@@ -6,15 +6,15 @@ class AtualizarUsuarioService:
     (conservador/moderado/arrojado) e a renda mensal do usuário."""
 
     def executar(self, usuario_id, dados):
-        usuario = Usuario.buscar(usuario_id)
+        usuario = Usuario.buscar_por_id(usuario_id)
         if usuario is None:
             return None
 
-        usuario.nome = dados.get("nome", usuario.nome)
-        usuario.email = dados.get("email", usuario.email)
-        usuario.perfil_risco = dados.get("perfil_risco", usuario.perfil_risco)
-        if dados.get("renda_mensal") is not None:
-            usuario.renda_mensal = float(dados.get("renda_mensal"))
-
-        usuario.salvar()
+        renda_mensal = dados.get("renda_mensal")
+        usuario.atualizar(
+            nome=dados.get("nome"),
+            email=dados.get("email"),
+            perfil_risco=dados.get("perfil_risco"),
+            renda_mensal=float(renda_mensal) if renda_mensal is not None else None,
+        )
         return usuario.to_dict()

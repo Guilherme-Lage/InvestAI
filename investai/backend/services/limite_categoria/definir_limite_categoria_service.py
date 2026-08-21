@@ -21,11 +21,11 @@ class DefinirLimiteCategoriaService:
 
         limite = LimiteCategoriaRepository.buscar_por_categoria(usuario_id, categoria)
         if limite:
-            limite.valor_limite = valor_limite
+            limite.atualizar(valor_limite=valor_limite)
         else:
             limite = LimiteCategoria(
                 usuario_id=usuario_id, categoria=categoria, valor_limite=valor_limite
             )
+            limite.salvar()
 
-        limite.salvar()
         return limite.to_dict()

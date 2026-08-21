@@ -280,7 +280,7 @@ class _ReservaEmergenciaCard extends StatelessWidget {
                 Text(reais(guardado),
                     style: GoogleFonts.inter(
                         fontSize: 16, fontWeight: FontWeight.w800, color: InvestAITheme.texto)),
-                Text('meta: ${reais(ideal)}',
+                Text(ideal > 0 ? 'meta: ${reais(ideal)}' : 'meta: a calcular',
                     style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza)),
               ],
             ),
@@ -298,7 +298,9 @@ class _ReservaEmergenciaCard extends StatelessWidget {
             Text(
               liberado
                   ? 'Reserva completa! Sugestões de investimento liberadas na aba Investir.'
-                  : 'Faltam ${reais((ideal - guardado).clamp(0, double.infinity))} para liberar sugestões de investimento (RF15).',
+                  : ideal <= 0
+                      ? 'Ainda não dá pra calcular sua meta ideal: registre ao menos uma despesa (aba Relatório) para calcularmos 3x sua despesa média mensal.'
+                      : 'Faltam ${reais((ideal - guardado).clamp(0, double.infinity))} para liberar sugestões de investimento (RF15).',
               style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza),
             ),
             if (!liberado && onAporte != null) ...[

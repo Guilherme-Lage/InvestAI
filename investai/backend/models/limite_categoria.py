@@ -19,6 +19,12 @@ class LimiteCategoria(ModeloBase):
     )
     usuario = db.relationship("Usuario", back_populates="limites_categoria")
 
+    def atualizar(self, valor_limite=None):
+        """UPDATE: altera apenas os campos informados."""
+        if valor_limite is not None:
+            self.valor_limite = valor_limite
+        return self.salvar()
+
     def to_dict(self):
         return {
             "id": self.id,

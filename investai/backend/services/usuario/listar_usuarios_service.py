@@ -3,5 +3,5 @@ from models import Usuario
 
 class ListarUsuariosService:
     def executar(self):
-        usuarios = Usuario.listar()
+        usuarios = Usuario.listar_todos()
         return [usuario.to_dict() for usuario in usuarios]

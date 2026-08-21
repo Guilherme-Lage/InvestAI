@@ -49,7 +49,7 @@ class GerarGuiaFinanceiroService:
     investir. Também aplica RF14/RF15 (reserva antes de investimento)."""
 
     def executar(self, usuario_id):
-        usuario = Usuario.buscar(usuario_id)
+        usuario = Usuario.buscar_por_id(usuario_id)
         if not usuario:
             return None
 

@@ -29,15 +29,16 @@ investai/
 └── backend/                        → API Web em Flask
     ├── app.py
     ├── requirements.txt
-    ├── controllers/                → Blueprints: recebem requisições e chamam as Services
-    ├── models/                     → entidades e CRUD básico (Flask-SQLAlchemy)
+    ├── controllers/                → uma classe por recurso (UsuarioController, MovimentacaoController, ...)
+    ├── models/                     → entidades e CRUD básico (salvar/atualizar/deletar/listar_todos/buscar_por_id)
     ├── repositories/                → consultas específicas que vão além do CRUD básico
     ├── services/                   → uma classe por funcionalidade, agrupadas por Model
     │   ├── usuario/                → CriarUsuarioService, AutenticarUsuarioService, ...
     │   ├── movimentacao/           → CriarMovimentacaoService, CalcularSaldoService, ...
     │   ├── meta/                   → CriarMetaService, CalcularStatusReservaEmergenciaService, ...
     │   ├── investimento/           → CriarInvestimentoService, ListarRankingInvestimentosService, ...
-    │   └── limite_categoria/       → DefinirLimiteCategoriaService, ...
+    │   ├── limite_categoria/       → DefinirLimiteCategoriaService, ...
+    │   └── mercado/                → BuscarCotacaoDolarService, BuscarTaxasMercadoService, BuscarTitulosTesouroService
     └── database/
         └── create_database.sql     → script de criação do banco e tabelas
 ```
@@ -46,22 +47,32 @@ investai/
 
 O backend segue quatro camadas:
 
-- **Controllers** (Blueprints do Flask) — recebem as requisições HTTP e chamam a
-  Service correspondente. As rotas de dados financeiros exigem um token JWT
-  (`Authorization: Bearer <token>`) e operam sempre sobre o usuário autenticado, nunca
-  sobre um `usuario_id` informado pelo cliente.
-- **Services** — cada funcionalidade é uma classe própria, em um arquivo próprio (ex.:
-  `CriarMovimentacaoService`, `CalcularSaldoService`), agrupadas em pastas por Model
-  (`services/usuario/`, `services/movimentacao/`, ...). Toda Service expõe um método
-  de instância `executar(...)`, que usa a Model (CRUD básico) ou o Repository
-  (consultas avançadas) e já devolve o resultado pronto para virar JSON — a Controller
-  só chama `MinhaService().executar(...)` e faz `jsonify(...)`. Erros de validação são
+- **Controllers** — uma classe por recurso (`UsuarioController`, `MovimentacaoController`,
+  `MetaController`, `InvestimentoController`, `LimiteCategoriaController`,
+  `OrientacaoController`, `MercadoController`). Cada método da classe recebe a
+  requisição HTTP, interpreta os dados, chama a Service correspondente e devolve a
+  resposta — nenhuma regra de negócio fica na Controller. As instâncias são registradas
+  nas rotas do Blueprint via `add_url_rule(..., view_func=controller.metodo, ...)`. As
+  rotas de dados financeiros exigem um token JWT (`Authorization: Bearer <token>`) e
+  operam sempre sobre o usuário autenticado, nunca sobre um `usuario_id` informado
+  pelo cliente.
+- **Services** — cada funcionalidade/caso de uso é uma classe própria, em um arquivo
+  próprio (ex.: `CriarMovimentacaoService`, `CalcularSaldoService`), agrupadas em
+  pastas por Model (`services/usuario/`, `services/movimentacao/`, ...). Toda Service
+  expõe um método de instância `executar(...)`, que valida os dados e coordena o caso
+  de uso chamando a Model (CRUD básico) ou o Repository (consultas avançadas), já
+  devolvendo o resultado pronto para virar JSON — a Controller só chama
+  `MinhaService().executar(...)` e faz `jsonify(...)`. Erros de validação são
   `ValueError` (a Controller devolve 400); `services/erros.py` traz o
   `ErroAutenticacao` usado no login (401).
-- **Models** — representam as entidades do domínio e o CRUD básico, herdando de
-  `ModeloBase` (Flask-SQLAlchemy).
+- **Models** — representam as entidades do domínio, herdando de `ModeloBase`
+  (Flask-SQLAlchemy), que fornece `salvar()`, `deletar()`, `listar_todos()` e
+  `buscar_por_id(id)`. Cada Model concreta implementa seu próprio `atualizar(...)`,
+  já que os campos aceitos variam por entidade (ex.: `Usuario.atualizar(nome=,
+  email=, perfil_risco=, renda_mensal=)`).
 - **Repositories** — concentram consultas específicas que vão além do CRUD: filtros
   (`WHERE`), agregações (`SUM`/`GROUP BY`), ordenações (`ORDER BY`) e junções (`JOIN`).
+  Não existem Repositories só para repetir CRUD simples.
 
 O app Flutter consome essas rotas por meio do `ApiService`, que guarda o token JWT
 localmente (`shared_preferences`) e o envia em toda chamada autenticada.
@@ -162,6 +173,32 @@ exigem `Authorization: Bearer <token>` e operam sobre o usuário autenticado.
 | RF18 | Perfil de investidor (conservador/moderado/arrojado) | cadastro + aba Perfil |
 | RF19 | Histórico com filtro por período e categoria | `services/movimentacao/listar_movimentacoes_service.py` / aba Relatório |
 | RF20 | Score financeiro (0–1000) | `services/usuario/calcular_score_financeiro_service.py` |
+
+## Funcionalidades Implementadas
+
+Cada item abaixo está disponível de ponta a ponta: **Tela (Flutter) → API Flask →
+Controller (classe) → Service (`executar()`) → Model/Repository → Banco de dados**.
+
+1. Cadastrar usuário — `UsuarioController.criar` → `CriarUsuarioService`
+2. Fazer login — `UsuarioController.login` → `AutenticarUsuarioService`
+3. Fazer logout — `UsuarioController.logout` → `LogoutUsuarioService`
+4. Registrar receita — `MovimentacaoController.criar` → `CriarMovimentacaoService`
+5. Registrar despesa — `MovimentacaoController.criar` → `CriarMovimentacaoService`
+6. Consultar saldo disponível em tempo real — `MovimentacaoController.saldo` → `CalcularSaldoService`
+7. Criar meta financeira — `MetaController.criar` → `CriarMetaService`
+8. Adicionar aporte a uma meta (com progresso recalculado) — `MetaController.atualizar` → `AtualizarMetaService`
+9. Consultar histórico de transações com filtro por período e categoria — `MovimentacaoController.listar` → `ListarMovimentacoesService`
+10. Consultar gastos por categoria (gráfico) — `MovimentacaoController.gastos_por_categoria` → `CalcularGastosPorCategoriaService`
+11. Definir limite de gasto por categoria — `LimiteCategoriaController.definir` → `DefinirLimiteCategoriaService`
+12. Consultar alertas de inatividade e de limite excedido — `MovimentacaoController.alertas` → `GerarAlertasService`
+13. Consultar status da reserva de emergência — `MetaController.reserva_emergencia` → `CalcularStatusReservaEmergenciaService`
+14. Consultar guia financeiro passo a passo — `OrientacaoController.guia` → `GerarGuiaFinanceiroService`
+15. Consultar score financeiro (0–1000) — `OrientacaoController.score` → `CalcularScoreFinanceiroService`
+16. Atualizar perfil de investidor — `UsuarioController.atualizar` → `AtualizarUsuarioService`
+17. Cadastrar investimento na carteira — `InvestimentoController.criar` → `CriarInvestimentoService`
+18. Consultar cotação do dólar com histórico (integração externa — AwesomeAPI) — `MercadoController.dolar` → `BuscarCotacaoDolarService`
+19. Consultar taxas oficiais Selic/CDI/IPCA (integração externa — Banco Central) — `MercadoController.taxas` → `BuscarTaxasMercadoService`
+20. Consultar títulos do Tesouro Direto ofertados agora (integração externa — Tesouro Transparente) — `MercadoController.tesouro` → `BuscarTitulosTesouroService`
 
 ## Funcionalidades (telas do app Flutter)
 

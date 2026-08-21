@@ -15,6 +15,20 @@ class Investimento(ModeloBase):
     )
     usuario = db.relationship("Usuario", back_populates="investimentos")
 
+    def atualizar(self, nome=None, tipo=None, valor_aplicado=None, rendimento_atual=None, liquidez=None):
+        """UPDATE: altera apenas os campos informados."""
+        if nome is not None:
+            self.nome = nome
+        if tipo is not None:
+            self.tipo = tipo
+        if valor_aplicado is not None:
+            self.valor_aplicado = valor_aplicado
+        if rendimento_atual is not None:
+            self.rendimento_atual = rendimento_atual
+        if liquidez is not None:
+            self.liquidez = liquidez
+        return self.salvar()
+
     def to_dict(self):
         return {
             "id": self.id,

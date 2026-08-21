@@ -18,6 +18,20 @@ class Meta(ModeloBase):
     )
     usuario = db.relationship("Usuario", back_populates="metas")
 
+    def atualizar(self, titulo=None, valor_alvo=None, valor_atual=None, prazo=None, tipo=None):
+        """UPDATE: altera apenas os campos informados."""
+        if titulo is not None:
+            self.titulo = titulo
+        if valor_alvo is not None:
+            self.valor_alvo = valor_alvo
+        if valor_atual is not None:
+            self.valor_atual = valor_atual
+        if prazo is not None:
+            self.prazo = prazo
+        if tipo is not None:
+            self.tipo = tipo
+        return self.salvar()
+
     @property
     def progresso(self):
         if self.valor_alvo <= 0:

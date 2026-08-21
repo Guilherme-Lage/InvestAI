@@ -75,7 +75,7 @@ class UsuarioRepository:
         """Relatório consolidado do usuário, combinando dados de
         Movimentacao (rendas/gastos), Investimento e Meta.
         """
-        usuario = Usuario.buscar(usuario_id)
+        usuario = Usuario.buscar_por_id(usuario_id)
         if not usuario:
             return None
 
