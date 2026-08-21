@@ -8,6 +8,10 @@ class Meta(ModeloBase):
     valor_alvo = db.Column(db.Float, nullable=False)
     valor_atual = db.Column(db.Float, nullable=False, default=0.0)
     prazo = db.Column(db.String(20), nullable=False)
+    # RF14/RF15 - metas do tipo "reserva_emergencia" representam a reserva
+    # de emergência do usuário; enquanto ela não atinge 3x a despesa média
+    # mensal, as sugestões de investimento continuam bloqueadas.
+    tipo = db.Column(db.String(30), nullable=False, default="geral")
 
     usuario_id = db.Column(
         db.Integer, db.ForeignKey("usuario.id"), nullable=False
@@ -28,6 +32,7 @@ class Meta(ModeloBase):
             "valor_atual": self.valor_atual,
             "prazo": self.prazo,
             "progresso": self.progresso,
+            "tipo": self.tipo,
             "usuario_id": self.usuario_id,
         }
 
