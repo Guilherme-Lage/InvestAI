@@ -430,8 +430,8 @@ class _SecaoSugestoes extends StatelessWidget {
           titulo: 'Reserva de emergência',
           subtitulo: liberado
               ? 'Concluída'
-              : reserva == null
-                  ? 'Em andamento'
+              : reserva == null || ((reserva['valor_ideal_reserva'] ?? 0) as num) <= 0
+                  ? 'Registre uma despesa (aba Relatório) para calcularmos sua meta'
                   : '${reais(reserva['valor_guardado'] ?? 0)} de ${reais(reserva['valor_ideal_reserva'] ?? 0)}',
         ),
         _PassoTrilha(

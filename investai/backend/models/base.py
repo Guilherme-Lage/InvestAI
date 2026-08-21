@@ -24,9 +24,9 @@ class ModeloBase(db.Model):
         db.session.commit()
 
     @classmethod
-    def listar(cls):
+    def listar_todos(cls):
         return cls.query.order_by(cls.id).all()
 
     @classmethod
-    def buscar(cls, id):
+    def buscar_por_id(cls, id):
         return cls.query.get(id)

@@ -17,59 +17,63 @@ def _pertence_ao_usuario(item):
     return item is not None and item["usuario_id"] == g.usuario_id
 
 
-@investimento_bp.route("", methods=["GET"])
-@token_obrigatorio
-def listar():
-    itens = ListarInvestimentosService().executar(g.usuario_id)
-    return jsonify(itens)
+class InvestimentoController:
+    """Controller do recurso Investimento: recebe a requisição HTTP, chama
+    a Service correspondente e devolve a resposta. Nenhuma regra de
+    negócio é implementada aqui."""
+
+    @token_obrigatorio
+    def listar(self):
+        itens = ListarInvestimentosService().executar(g.usuario_id)
+        return jsonify(itens)
+
+    @token_obrigatorio
+    def buscar(self, id):
+        item = BuscarInvestimentoPorIdService().executar(id)
+        if not _pertence_ao_usuario(item):
+            return jsonify({"erro": "Investimento não encontrado"}), 404
+        return jsonify(item)
+
+    @token_obrigatorio
+    def criar(self):
+        dados = dict(request.get_json() or request.form)
+        dados["usuario_id"] = g.usuario_id
+        item = CriarInvestimentoService().executar(dados)
+        return jsonify(item), 201
+
+    @token_obrigatorio
+    def atualizar(self, id):
+        item = BuscarInvestimentoPorIdService().executar(id)
+        if not _pertence_ao_usuario(item):
+            return jsonify({"erro": "Investimento não encontrado"}), 404
+        dados = dict(request.get_json() or request.form)
+        dados.pop("usuario_id", None)
+        item = AtualizarInvestimentoService().executar(id, dados)
+        return jsonify(item)
+
+    @token_obrigatorio
+    def deletar(self, id):
+        item = BuscarInvestimentoPorIdService().executar(id)
+        if not _pertence_ao_usuario(item):
+            return jsonify({"erro": "Investimento não encontrado"}), 404
+        DeletarInvestimentoService().executar(id)
+        return jsonify({"mensagem": "Investimento excluído"})
+
+    @token_obrigatorio
+    def ranking(self):
+        """Ranking dos investimentos do usuário logado com maior rendimento
+        atual. Query params opcionais: limite (padrão 5), tipo."""
+        limite = request.args.get("limite", 5, type=int)
+        tipo = request.args.get("tipo")
+        itens = ListarRankingInvestimentosService().executar(g.usuario_id, limite=limite, tipo=tipo)
+        return jsonify(itens)
 
 
-@investimento_bp.route("/<int:id>", methods=["GET"])
-@token_obrigatorio
-def buscar(id):
-    item = BuscarInvestimentoPorIdService().executar(id)
-    if not _pertence_ao_usuario(item):
-        return jsonify({"erro": "Investimento não encontrado"}), 404
-    return jsonify(item)
+controller = InvestimentoController()
 
-
-@investimento_bp.route("", methods=["POST"])
-@token_obrigatorio
-def criar():
-    dados = dict(request.get_json() or request.form)
-    dados["usuario_id"] = g.usuario_id
-    item = CriarInvestimentoService().executar(dados)
-    return jsonify(item), 201
-
-
-@investimento_bp.route("/<int:id>", methods=["PUT"])
-@token_obrigatorio
-def atualizar(id):
-    item = BuscarInvestimentoPorIdService().executar(id)
-    if not _pertence_ao_usuario(item):
-        return jsonify({"erro": "Investimento não encontrado"}), 404
-    dados = dict(request.get_json() or request.form)
-    dados.pop("usuario_id", None)
-    item = AtualizarInvestimentoService().executar(id, dados)
-    return jsonify(item)
-
-
-@investimento_bp.route("/<int:id>", methods=["DELETE"])
-@token_obrigatorio
-def deletar(id):
-    item = BuscarInvestimentoPorIdService().executar(id)
-    if not _pertence_ao_usuario(item):
-        return jsonify({"erro": "Investimento não encontrado"}), 404
-    DeletarInvestimentoService().executar(id)
-    return jsonify({"mensagem": "Investimento excluído"})
-
-
-@investimento_bp.route("/ranking", methods=["GET"])
-@token_obrigatorio
-def ranking():
-    """Ranking dos investimentos do usuário logado com maior rendimento
-    atual. Query params opcionais: limite (padrão 5), tipo."""
-    limite = request.args.get("limite", 5, type=int)
-    tipo = request.args.get("tipo")
-    itens = ListarRankingInvestimentosService().executar(g.usuario_id, limite=limite, tipo=tipo)
-    return jsonify(itens)
+investimento_bp.add_url_rule("", view_func=controller.listar, methods=["GET"])
+investimento_bp.add_url_rule("", view_func=controller.criar, methods=["POST"])
+investimento_bp.add_url_rule("/ranking", view_func=controller.ranking, methods=["GET"])
+investimento_bp.add_url_rule("/<int:id>", view_func=controller.buscar, methods=["GET"])
+investimento_bp.add_url_rule("/<int:id>", view_func=controller.atualizar, methods=["PUT"])
+investimento_bp.add_url_rule("/<int:id>", view_func=controller.deletar, methods=["DELETE"])

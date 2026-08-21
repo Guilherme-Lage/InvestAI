@@ -36,6 +36,18 @@ class Usuario(ModeloBase):
             return False
         return check_password_hash(self.senha_hash, senha_texto_puro)
 
+    def atualizar(self, nome=None, email=None, perfil_risco=None, renda_mensal=None):
+        """UPDATE: altera apenas os campos informados."""
+        if nome is not None:
+            self.nome = nome
+        if email is not None:
+            self.email = email
+        if perfil_risco is not None:
+            self.perfil_risco = perfil_risco
+        if renda_mensal is not None:
+            self.renda_mensal = renda_mensal
+        return self.salvar()
+
     def to_dict(self):
         # senha_hash NUNCA é exposto pela API.
         return {

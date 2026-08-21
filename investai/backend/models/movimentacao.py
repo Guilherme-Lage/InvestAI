@@ -18,6 +18,20 @@ class Movimentacao(ModeloBase):
     )
     usuario = db.relationship("Usuario", back_populates="movimentacoes")
 
+    def atualizar(self, descricao=None, tipo=None, valor=None, data=None, categoria=None):
+        """UPDATE: altera apenas os campos informados."""
+        if descricao is not None:
+            self.descricao = descricao
+        if tipo is not None:
+            self.tipo = tipo
+        if valor is not None:
+            self.valor = valor
+        if data is not None:
+            self.data = data
+        if categoria is not None:
+            self.categoria = categoria
+        return self.salvar()
+
     def to_dict(self):
         return {
             "id": self.id,

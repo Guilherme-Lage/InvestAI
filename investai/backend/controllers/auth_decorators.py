@@ -34,7 +34,7 @@ def token_obrigatorio(funcao):
             return jsonify({"erro": "Sessão encerrada. Faça login novamente."}), 401
 
         usuario_id = int(payload["sub"])
-        if not Usuario.buscar(usuario_id):
+        if not Usuario.buscar_por_id(usuario_id):
             return jsonify({"erro": "Usuário não encontrado. Faça login novamente."}), 401
 
         g.usuario_id = usuario_id
