@@ -3,7 +3,8 @@ from functools import wraps
 import jwt
 from flask import g, jsonify, request
 
-from models import TokenRevogado, Usuario
+from models import Usuario
+from repositories import TokenRevogadoRepository
 from services.auth_service import AuthService
 
 
@@ -30,7 +31,7 @@ def token_obrigatorio(funcao):
         except jwt.InvalidTokenError:
             return jsonify({"erro": "Token inválido."}), 401
 
-        if TokenRevogado.query.filter_by(jti=payload["jti"]).first():
+        if TokenRevogadoRepository.buscar_por_jti(payload["jti"]):
             return jsonify({"erro": "Sessão encerrada. Faça login novamente."}), 401
 
         usuario_id = int(payload["sub"])

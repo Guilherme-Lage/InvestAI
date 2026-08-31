@@ -30,9 +30,9 @@ class CalcularScoreFinanceiroService:
 
         # 3) Cumprimento de metas (0-250 pts): proporção de metas concluídas.
         metas = MetaRepository.listar_por_usuario(usuario_id)
-        metas_gerais = [m for m in metas if m.tipo != "reserva_emergencia"]
+        metas_gerais = [m for m in metas if m["tipo"] != "reserva_emergencia"]
         if metas_gerais:
-            concluidas = sum(1 for m in metas_gerais if m.valor_atual >= m.valor_alvo)
+            concluidas = sum(1 for m in metas_gerais if m["valor_atual"] >= m["valor_alvo"])
             pontos_metas = 250.0 * (concluidas / len(metas_gerais))
         else:
             pontos_metas = 0.0

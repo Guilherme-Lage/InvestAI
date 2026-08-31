@@ -1,4 +1,5 @@
 from models import TokenRevogado
+from repositories import TokenRevogadoRepository
 
 
 class LogoutUsuarioService:
@@ -6,5 +7,5 @@ class LogoutUsuarioService:
     possa mais ser reutilizado, mesmo antes de expirar."""
 
     def executar(self, usuario_id, token_jti):
-        if not TokenRevogado.query.filter_by(jti=token_jti).first():
+        if not TokenRevogadoRepository.buscar_por_jti(token_jti):
             TokenRevogado(jti=token_jti, usuario_id=usuario_id).salvar()

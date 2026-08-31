@@ -12,12 +12,4 @@ class GerarRelatorioMensalService:
         ano = ano or hoje.year
         mes = mes or hoje.month
 
-        resumo = MovimentacaoRepository.resumo_mensal(usuario_id, ano, mes)
-        return {
-            "ano": resumo["ano"],
-            "mes": resumo["mes"],
-            "total_entradas": resumo["total_entradas"],
-            "total_saidas": resumo["total_saidas"],
-            "saldo_periodo": resumo["saldo_periodo"],
-            "itens": [item.to_dict() for item in resumo["itens"]],
-        }
+        return MovimentacaoRepository.resumo_mensal(usuario_id, ano, mes)
