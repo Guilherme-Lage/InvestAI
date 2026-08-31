@@ -15,8 +15,8 @@ class ListarMetasService:
 
         resultado = []
         for meta in metas:
-            faltante = max(meta.valor_alvo - meta.valor_atual, 0.0)
-            meses_restantes = self._meses_restantes(meta.prazo)
+            faltante = max(meta["valor_alvo"] - meta["valor_atual"], 0.0)
+            meses_restantes = self._meses_restantes(meta["prazo"])
             aporte_necessario = faltante / meses_restantes
 
             # O aporte sugerido nunca ultrapassa a capacidade de economia
@@ -29,7 +29,7 @@ class ListarMetasService:
                 aporte_sugerido = 0.0
 
             resultado.append({
-                **meta.to_dict(),
+                **meta,
                 "aporte_sugerido": round(max(aporte_sugerido, 0.0), 2),
                 "meses_restantes": meses_restantes,
             })

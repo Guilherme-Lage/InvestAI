@@ -19,8 +19,9 @@ class DefinirLimiteCategoriaService:
         if valor_limite <= 0:
             raise ValueError("O limite deve ser maior que zero.")
 
-        limite = LimiteCategoriaRepository.buscar_por_categoria(usuario_id, categoria)
-        if limite:
+        existente = LimiteCategoriaRepository.buscar_por_categoria(usuario_id, categoria)
+        if existente:
+            limite = LimiteCategoria.buscar_por_id(existente["id"])
             limite.atualizar(valor_limite=valor_limite)
         else:
             limite = LimiteCategoria(

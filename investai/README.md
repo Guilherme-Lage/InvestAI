@@ -72,7 +72,9 @@ O backend segue quatro camadas:
   email=, perfil_risco=, renda_mensal=)`).
 - **Repositories** — concentram consultas específicas que vão além do CRUD: filtros
   (`WHERE`), agregações (`SUM`/`GROUP BY`), ordenações (`ORDER BY`) e junções (`JOIN`).
-  Não existem Repositories só para repetir CRUD simples.
+  Todo acesso a dados é feito com **SQL puro**, via `db.session.execute(text(...))` —
+  nunca com o ORM (`.query()`/`.filter()`) nem chamando métodos da Model. Não existem
+  Repositories só para repetir CRUD simples.
 
 O app Flutter consome essas rotas por meio do `ApiService`, que guarda o token JWT
 localmente (`shared_preferences`) e o envia em toda chamada autenticada.

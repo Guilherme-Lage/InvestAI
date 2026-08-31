@@ -13,13 +13,13 @@ class CalcularStatusReservaEmergenciaService:
         alvo_ideal = despesa_media * MULTIPLICADOR_RESERVA_EMERGENCIA
 
         reserva = MetaRepository.buscar_reserva_emergencia(usuario_id)
-        valor_guardado = reserva.valor_atual if reserva else 0.0
+        valor_guardado = reserva["valor_atual"] if reserva else 0.0
 
         liberado = alvo_ideal > 0 and valor_guardado >= alvo_ideal
 
         return {
             "possui_reserva": reserva is not None,
-            "reserva": reserva.to_dict() if reserva else None,
+            "reserva": reserva,
             "despesa_media_mensal": round(despesa_media, 2),
             "valor_ideal_reserva": round(alvo_ideal, 2),
             "valor_guardado": round(valor_guardado, 2),

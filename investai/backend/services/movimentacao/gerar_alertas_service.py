@@ -27,12 +27,12 @@ class GerarAlertasService:
 
         alertas_categoria = []
         for limite in LimiteCategoriaRepository.listar_por_usuario(usuario_id):
-            gasto_atual = gastos_por_categoria.get(limite.categoria, 0.0)
-            if gasto_atual > limite.valor_limite:
+            gasto_atual = gastos_por_categoria.get(limite["categoria"], 0.0)
+            if gasto_atual > limite["valor_limite"]:
                 alertas_categoria.append({
-                    "categoria": limite.categoria,
+                    "categoria": limite["categoria"],
                     "gasto_atual": gasto_atual,
-                    "limite": limite.valor_limite,
+                    "limite": limite["valor_limite"],
                 })
 
         return {

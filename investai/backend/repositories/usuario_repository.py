@@ -1,120 +1,104 @@
-from models import Usuario, Movimentacao, Investimento, Meta, db
+from sqlalchemy import text
+
+from models import db
 
 
 class UsuarioRepository:
-    """Consultas específicas de Usuario que vão além do CRUD básico.
-
-    As consultas aqui usam filtros (WHERE), buscas (LIKE), ordenações
-    (ORDER BY), junções entre tabelas (JOIN) e agregações (SUM/COUNT),
-    combinando dados de Usuario com Movimentacao, Investimento e Meta.
-    """
+    """Consultas específicas de Usuario que vão além do CRUD básico da
+    Model. Todo acesso a dados aqui é feito com SQL puro (via `text()` do
+    SQLAlchemy), sem usar o ORM (`.query()`/`.filter()`) nem chamar
+    métodos da Model — a Repository só executa a consulta e devolve
+    dicionários prontos."""
 
     @staticmethod
     def buscar_por_email(email):
-        return Usuario.query.filter_by(email=email).first()
+        """Inclui o senha_hash de propósito: quem decide o que é seguro
+        expor na API é a Service (AutenticarUsuarioService), não a
+        Repository."""
+        sql = text("""
+            SELECT id, nome, email, senha_hash, perfil_risco, renda_mensal
+            FROM usuario
+            WHERE email = :email
+        """)
+        linha = db.session.execute(sql, {"email": email}).mappings().first()
+        return dict(linha) if linha else None
 
     @staticmethod
     def listar_por_perfil(perfil_risco):
-        return Usuario.query.filter_by(perfil_risco=perfil_risco).order_by(Usuario.nome).all()
+        sql = text("""
+            SELECT id, nome, email, perfil_risco, renda_mensal
+            FROM usuario
+            WHERE perfil_risco = :perfil_risco
+            ORDER BY nome
+        """)
+        linhas = db.session.execute(sql, {"perfil_risco": perfil_risco}).mappings().all()
+        return [dict(linha) for linha in linhas]
 
     @staticmethod
     def buscar_com_estatisticas(termo=None):
         """Busca usuários por nome/e-mail (LIKE) e retorna, para cada um,
         estatísticas agregadas obtidas via JOIN com as demais tabelas:
-        quantidade de movimentações, total investido e quantidade de metas.
-
-        Retorna uma lista de dicionários prontos para a API/tela.
+        quantidade de movimentações, investimentos, metas e total investido.
         """
-        consulta = (
-            db.session.query(
-                Usuario,
-                db.func.count(db.distinct(Movimentacao.id)).label("qtd_movimentacoes"),
-                db.func.count(db.distinct(Investimento.id)).label("qtd_investimentos"),
-                db.func.count(db.distinct(Meta.id)).label("qtd_metas"),
-            )
-            .outerjoin(Movimentacao, Movimentacao.usuario_id == Usuario.id)
-            .outerjoin(Investimento, Investimento.usuario_id == Usuario.id)
-            .outerjoin(Meta, Meta.usuario_id == Usuario.id)
-            .group_by(Usuario.id)
-            .order_by(Usuario.nome)
-        )
-
-        if termo:
-            padrao = f"%{termo}%"
-            consulta = consulta.filter(
-                db.or_(Usuario.nome.ilike(padrao), Usuario.email.ilike(padrao))
-            )
-
-        resultados = consulta.all()
-
-        # O JOIN combina três tabelas ao mesmo tempo, então o total investido
-        # (que também é uma soma) é calculado à parte para evitar que o
-        # produto cartesiano do JOIN infle o valor agregado.
-        usuarios = []
-        for usuario, qtd_movimentacoes, qtd_investimentos, qtd_metas in resultados:
-            usuarios.append({
-                **usuario.to_dict(),
-                "qtd_movimentacoes": qtd_movimentacoes,
-                "qtd_investimentos": qtd_investimentos,
-                "qtd_metas": qtd_metas,
-                "total_investido": UsuarioRepository._total_investido(usuario.id),
-            })
-        return usuarios
-
-    @staticmethod
-    def _total_investido(usuario_id):
-        total = (
-            db.session.query(db.func.coalesce(db.func.sum(Investimento.valor_aplicado), 0.0))
-            .filter(Investimento.usuario_id == usuario_id)
-            .scalar()
-        )
-        return float(total or 0.0)
+        sql = text("""
+            SELECT
+                u.id, u.nome, u.email, u.perfil_risco, u.renda_mensal,
+                COUNT(DISTINCT m.id) AS qtd_movimentacoes,
+                COUNT(DISTINCT i.id) AS qtd_investimentos,
+                COUNT(DISTINCT me.id) AS qtd_metas,
+                COALESCE((
+                    SELECT SUM(i2.valor_aplicado) FROM investimento i2 WHERE i2.usuario_id = u.id
+                ), 0.0) AS total_investido
+            FROM usuario u
+            LEFT JOIN movimentacao m ON m.usuario_id = u.id
+            LEFT JOIN investimento i ON i.usuario_id = u.id
+            LEFT JOIN meta me ON me.usuario_id = u.id
+            WHERE (:termo IS NULL OR u.nome LIKE :padrao OR u.email LIKE :padrao)
+            GROUP BY u.id
+            ORDER BY u.nome
+        """)
+        linhas = db.session.execute(sql, {
+            "termo": termo,
+            "padrao": f"%{termo}%" if termo else None,
+        }).mappings().all()
+        return [dict(linha) for linha in linhas]
 
     @staticmethod
     def relatorio_financeiro(usuario_id):
         """Relatório consolidado do usuário, combinando dados de
-        Movimentacao (rendas/gastos), Investimento e Meta.
-        """
-        usuario = Usuario.buscar_por_id(usuario_id)
+        Movimentacao (rendas/gastos), Investimento e Meta."""
+        usuario_sql = text("""
+            SELECT id, nome, email, perfil_risco, renda_mensal
+            FROM usuario WHERE id = :usuario_id
+        """)
+        usuario = db.session.execute(usuario_sql, {"usuario_id": usuario_id}).mappings().first()
         if not usuario:
             return None
 
-        total_rendas = (
-            db.session.query(db.func.coalesce(db.func.sum(Movimentacao.valor), 0.0))
-            .filter(Movimentacao.usuario_id == usuario_id, Movimentacao.tipo == "renda")
-            .scalar()
-        )
-        total_gastos = (
-            db.session.query(db.func.coalesce(db.func.sum(Movimentacao.valor), 0.0))
-            .filter(Movimentacao.usuario_id == usuario_id, Movimentacao.tipo == "gasto")
-            .scalar()
-        )
-        total_investido = UsuarioRepository._total_investido(usuario_id)
-        total_rendimento = (
-            db.session.query(db.func.coalesce(db.func.sum(Investimento.rendimento_atual), 0.0))
-            .filter(Investimento.usuario_id == usuario_id)
-            .scalar()
-        )
+        agregados_sql = text("""
+            SELECT
+                COALESCE((SELECT SUM(valor) FROM movimentacao WHERE usuario_id = :uid AND tipo = 'renda'), 0.0) AS total_rendas,
+                COALESCE((SELECT SUM(valor) FROM movimentacao WHERE usuario_id = :uid AND tipo = 'gasto'), 0.0) AS total_gastos,
+                COALESCE((SELECT SUM(valor_aplicado) FROM investimento WHERE usuario_id = :uid), 0.0) AS total_investido,
+                COALESCE((SELECT SUM(rendimento_atual) FROM investimento WHERE usuario_id = :uid), 0.0) AS total_rendimento,
+                (SELECT COUNT(*) FROM meta WHERE usuario_id = :uid) AS qtd_metas,
+                (SELECT COUNT(*) FROM meta WHERE usuario_id = :uid AND valor_atual >= valor_alvo) AS qtd_metas_concluidas
+        """)
+        agregados = db.session.execute(agregados_sql, {"uid": usuario_id}).mappings().first()
 
-        qtd_metas = db.session.query(db.func.count(Meta.id)).filter(Meta.usuario_id == usuario_id).scalar()
-        qtd_metas_concluidas = (
-            db.session.query(db.func.count(Meta.id))
-            .filter(Meta.usuario_id == usuario_id, Meta.valor_atual >= Meta.valor_alvo)
-            .scalar()
-        )
-
-        total_rendas = float(total_rendas or 0.0)
-        total_gastos = float(total_gastos or 0.0)
-        total_rendimento = float(total_rendimento or 0.0)
+        total_rendas = float(agregados["total_rendas"])
+        total_gastos = float(agregados["total_gastos"])
+        total_investido = float(agregados["total_investido"])
+        total_rendimento = float(agregados["total_rendimento"])
 
         return {
-            "usuario": usuario.to_dict(),
+            "usuario": dict(usuario),
             "total_rendas": total_rendas,
             "total_gastos": total_gastos,
             "saldo": total_rendas - total_gastos,
             "total_investido": total_investido,
             "total_rendimento": total_rendimento,
             "patrimonio_total": total_investido + total_rendimento,
-            "qtd_metas": int(qtd_metas or 0),
-            "qtd_metas_concluidas": int(qtd_metas_concluidas or 0),
+            "qtd_metas": int(agregados["qtd_metas"] or 0),
+            "qtd_metas_concluidas": int(agregados["qtd_metas_concluidas"] or 0),
         }

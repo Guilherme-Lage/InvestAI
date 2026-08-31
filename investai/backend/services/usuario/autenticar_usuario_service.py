@@ -1,3 +1,5 @@
+from werkzeug.security import check_password_hash
+
 from repositories import UsuarioRepository
 from services.auth_service import AuthService
 from services.erros import ErroAutenticacao
@@ -15,8 +17,9 @@ class AutenticarUsuarioService:
             raise ValueError("Informe e-mail e senha.")
 
         usuario = UsuarioRepository.buscar_por_email(email)
-        if not usuario or not usuario.verificar_senha(senha):
+        if not usuario or not check_password_hash(usuario["senha_hash"], senha):
             raise ErroAutenticacao("E-mail ou senha incorretos.")
 
-        token = AuthService.gerar_token(usuario.id)
-        return {"usuario": usuario.to_dict(), "token": token}
+        token = AuthService.gerar_token(usuario["id"])
+        usuario_publico = {k: v for k, v in usuario.items() if k != "senha_hash"}
+        return {"usuario": usuario_publico, "token": token}

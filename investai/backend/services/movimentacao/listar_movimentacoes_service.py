@@ -6,7 +6,7 @@ class ListarMovimentacoesService:
     opcionais por tipo, categoria e período."""
 
     def executar(self, usuario_id, tipo=None, categoria=None, data_inicio=None, data_fim=None, ordenar="data_desc"):
-        movimentacoes = MovimentacaoRepository.extrato(
+        return MovimentacaoRepository.extrato(
             usuario_id,
             tipo=tipo,
             categoria=categoria,
@@ -14,4 +14,3 @@ class ListarMovimentacoesService:
             data_fim=data_fim,
             ordenar=ordenar,
         )
-        return [movimentacao.to_dict() for movimentacao in movimentacoes]
