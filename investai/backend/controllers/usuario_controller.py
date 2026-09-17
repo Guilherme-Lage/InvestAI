@@ -16,16 +16,24 @@ from .auth_decorators import token_obrigatorio
 usuario_bp = Blueprint("usuario", __name__, url_prefix="/api/usuarios")
 
 
+def _pertence_ao_usuario(id):
+    return id == g.usuario_id
+
+
 class UsuarioController:
     """Controller do recurso Usuario: recebe a requisição HTTP, chama a
     Service correspondente e devolve a resposta. Nenhuma regra de negócio
     é implementada aqui."""
 
+    @token_obrigatorio
     def listar(self):
         usuarios = ListarUsuariosService().executar()
         return jsonify(usuarios)
 
+    @token_obrigatorio
     def buscar(self, id):
+        if not _pertence_ao_usuario(id):
+            return jsonify({"erro": "Usuário não encontrado"}), 404
         usuario = BuscarUsuarioPorIdService().executar(id)
         if usuario is None:
             return jsonify({"erro": "Usuário não encontrado"}), 404
@@ -74,19 +82,26 @@ class UsuarioController:
             return jsonify({"erro": "Usuário não encontrado"}), 404
         return jsonify(usuario)
 
+    @token_obrigatorio
     def atualizar(self, id):
+        if not _pertence_ao_usuario(id):
+            return jsonify({"erro": "Usuário não encontrado"}), 404
         dados = request.get_json() or request.form
         usuario = AtualizarUsuarioService().executar(id, dados)
         if usuario is None:
             return jsonify({"erro": "Usuário não encontrado"}), 404
         return jsonify(usuario)
 
+    @token_obrigatorio
     def deletar(self, id):
+        if not _pertence_ao_usuario(id):
+            return jsonify({"erro": "Usuário não encontrado"}), 404
         ok = DeletarUsuarioService().executar(id)
         if not ok:
             return jsonify({"erro": "Usuário não encontrado"}), 404
         return jsonify({"mensagem": "Usuário excluído"})
 
+    @token_obrigatorio
     def busca(self):
         """Busca usuários por nome/e-mail e retorna estatísticas agregadas
         (quantidade de movimentações, investimentos, metas e total investido),
@@ -95,13 +110,17 @@ class UsuarioController:
         resultado = BuscarUsuariosComEstatisticasService().executar(termo)
         return jsonify(resultado)
 
+    @token_obrigatorio
     def por_perfil(self, perfil_risco):
         usuarios = ListarUsuariosPorPerfilService().executar(perfil_risco)
         return jsonify(usuarios)
 
+    @token_obrigatorio
     def relatorio(self, id):
         """Relatório financeiro consolidado do usuário: saldo (rendas - gastos),
         total investido, rendimento total e progresso das metas."""
+        if not _pertence_ao_usuario(id):
+            return jsonify({"erro": "Usuário não encontrado"}), 404
         dados = GerarRelatorioFinanceiroUsuarioService().executar(id)
         if not dados:
             return jsonify({"erro": "Usuário não encontrado"}), 404
