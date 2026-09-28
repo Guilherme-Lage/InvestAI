@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS usuario (
     senha_hash        VARCHAR(255)  NOT NULL,
     perfil_risco      VARCHAR(20)   NOT NULL DEFAULT 'conservador',
     renda_mensal      DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    despesa_mensal_estimada DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    despesa_fixa_estimada   DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     data_criacao      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
                                     ON UPDATE CURRENT_TIMESTAMP
