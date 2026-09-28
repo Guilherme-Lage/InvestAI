@@ -180,6 +180,17 @@ class _MetasTabState extends State<MetasTab> {
                               ? () => _adicionarAporte(Meta.fromJson(_reserva!['reserva']))
                               : null,
                         ),
+
+                      // Fica logo abaixo do card porque é aqui que a pessoa
+                      // faz o aporte - a decisão de onde deixar o dinheiro
+                      // acontece no mesmo momento.
+                      if (_reserva?['onde_guardar'] != null) ...[
+                        const SizedBox(height: 20),
+                        _OndeGuardarReserva(
+                          dados: _reserva!['onde_guardar'] as Map<String, dynamic>,
+                          reais: _reais,
+                        ),
+                      ],
                       const SizedBox(height: 20),
 
                       Text('Suas metas',
@@ -616,6 +627,142 @@ class _FormularioMetaState extends State<_FormularioMeta> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Onde deixar a reserva enquanto ela é construída. Não conflita com o
+/// RF15: aquela regra bloqueia investir para crescer, mas a reserva
+/// precisa ficar em algum lugar - e parada na conta ela perde para a
+/// inflação todo mês.
+class _OndeGuardarReserva extends StatelessWidget {
+  final Map<String, dynamic> dados;
+  final String Function(num) reais;
+
+  const _OndeGuardarReserva({required this.dados, required this.reais});
+
+  @override
+  Widget build(BuildContext context) {
+    final opcoes = (dados['opcoes'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    if (opcoes.isEmpty) return const SizedBox.shrink();
+
+    final perda = (dados['perda_anual_se_parado'] ?? 0) as num;
+    final valor = (dados['valor_considerado'] ?? 0) as num;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.savings_outlined, color: InvestAITheme.verde, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Onde deixar sua reserva enquanto junta',
+                  style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: InvestAITheme.texto)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Reserva não é dinheiro parado: ela precisa render, mas com resgate '
+          'em qualquer dia. Por isso só entram aplicações de liquidez diária.',
+          style: GoogleFonts.inter(
+              fontSize: 12, color: InvestAITheme.cinza, height: 1.4),
+        ),
+        const SizedBox(height: 12),
+
+        for (final o in opcoes)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: InvestAITheme.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: InvestAITheme.borda),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(o['nome'] ?? '',
+                          style: GoogleFonts.inter(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: InvestAITheme.texto)),
+                    ),
+                    Text('${o['taxa_anual']}% a.a.',
+                        style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: InvestAITheme.verde)),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(o['descricao'] ?? '',
+                    style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        color: InvestAITheme.cinza,
+                        height: 1.35)),
+                const SizedBox(height: 7),
+                Row(
+                  children: [
+                    const Icon(Icons.verified_user_outlined,
+                        size: 13, color: InvestAITheme.cinza),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(o['protecao'] ?? '',
+                          style: GoogleFonts.inter(
+                              fontSize: 11, color: InvestAITheme.cinza)),
+                    ),
+                    if (valor > 0)
+                      Text('+${reais(o['rendimento_ano'] ?? 0)}/ano',
+                          style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: InvestAITheme.verde)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+        // O custo de não fazer nada, que costuma passar despercebido.
+        if (perda > 0)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: InvestAITheme.amarelo.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: InvestAITheme.amarelo.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.trending_down_rounded,
+                    size: 16, color: InvestAITheme.amarelo),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Parada na conta, sua reserva perde cerca de '
+                    '${reais(perda)} por ano para a inflação '
+                    '(IPCA ${dados['ipca']}%).',
+                    style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        color: InvestAITheme.amarelo,
+                        height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

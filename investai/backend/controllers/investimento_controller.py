@@ -6,6 +6,7 @@ from services.investimento.buscar_investimento_por_id_service import BuscarInves
 from services.investimento.atualizar_investimento_service import AtualizarInvestimentoService
 from services.investimento.deletar_investimento_service import DeletarInvestimentoService
 from services.investimento.listar_ranking_investimentos_service import ListarRankingInvestimentosService
+from services.investimento.simular_aporte_service import SimularAporteService
 from .auth_decorators import token_obrigatorio
 
 investimento_bp = Blueprint(
@@ -33,6 +34,21 @@ class InvestimentoController:
         if not _pertence_ao_usuario(item):
             return jsonify({"erro": "Investimento não encontrado"}), 404
         return jsonify(item)
+
+    @token_obrigatorio
+    def simular(self):
+        """Projeta o resultado de um valor inicial mais aportes mensais em
+        cada aplicação, com as taxas oficiais do dia."""
+        dados = request.get_json() or {}
+        try:
+            resultado = SimularAporteService().executar(
+                valor_inicial=dados.get("valor_inicial"),
+                aporte_mensal=dados.get("aporte_mensal"),
+                prazos_meses=dados.get("prazos_meses"),
+            )
+        except ValueError as erro:
+            return jsonify({"erro": str(erro)}), 400
+        return jsonify(resultado)
 
     @token_obrigatorio
     def criar(self):
@@ -74,6 +90,7 @@ controller = InvestimentoController()
 investimento_bp.add_url_rule("", view_func=controller.listar, methods=["GET"])
 investimento_bp.add_url_rule("", view_func=controller.criar, methods=["POST"])
 investimento_bp.add_url_rule("/ranking", view_func=controller.ranking, methods=["GET"])
+investimento_bp.add_url_rule("/simular", view_func=controller.simular, methods=["POST"])
 investimento_bp.add_url_rule("/<int:id>", view_func=controller.buscar, methods=["GET"])
 investimento_bp.add_url_rule("/<int:id>", view_func=controller.atualizar, methods=["PUT"])
 investimento_bp.add_url_rule("/<int:id>", view_func=controller.deletar, methods=["DELETE"])
