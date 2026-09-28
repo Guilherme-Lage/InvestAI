@@ -11,6 +11,13 @@ class Usuario(ModeloBase):
     senha_hash = db.Column(db.String(255), nullable=False)
     perfil_risco = db.Column(db.String(20), nullable=False, default="conservador")
     renda_mensal = db.Column(db.Float, nullable=False, default=0.0)
+    # Estimativas informadas no cadastro. Servem como ponto de partida para
+    # RF09/RF14/RF15 enquanto o usuário ainda não registrou despesas reais -
+    # sem elas, a meta da reserva nasceria zerada e a trilha ficaria travada.
+    # A parte fixa é guardada à parte porque orienta o guia (RF16): sugerir
+    # "corte gastos" para quem só tem despesa obrigatória não ajuda em nada.
+    despesa_mensal_estimada = db.Column(db.Float, nullable=False, default=0.0)
+    despesa_fixa_estimada = db.Column(db.Float, nullable=False, default=0.0)
 
     movimentacoes = db.relationship(
         "Movimentacao", back_populates="usuario", cascade="all, delete-orphan"
@@ -36,7 +43,9 @@ class Usuario(ModeloBase):
             return False
         return check_password_hash(self.senha_hash, senha_texto_puro)
 
-    def atualizar(self, nome=None, email=None, perfil_risco=None, renda_mensal=None):
+    def atualizar(self, nome=None, email=None, perfil_risco=None,
+                  renda_mensal=None, despesa_mensal_estimada=None,
+                  despesa_fixa_estimada=None):
         """UPDATE: altera apenas os campos informados."""
         if nome is not None:
             self.nome = nome
@@ -46,6 +55,10 @@ class Usuario(ModeloBase):
             self.perfil_risco = perfil_risco
         if renda_mensal is not None:
             self.renda_mensal = renda_mensal
+        if despesa_mensal_estimada is not None:
+            self.despesa_mensal_estimada = despesa_mensal_estimada
+        if despesa_fixa_estimada is not None:
+            self.despesa_fixa_estimada = despesa_fixa_estimada
         return self.salvar()
 
     def to_dict(self):
@@ -56,6 +69,8 @@ class Usuario(ModeloBase):
             "email": self.email,
             "perfil_risco": self.perfil_risco,
             "renda_mensal": self.renda_mensal,
+            "despesa_mensal_estimada": self.despesa_mensal_estimada,
+            "despesa_fixa_estimada": self.despesa_fixa_estimada,
         }
 
     def __repr__(self):

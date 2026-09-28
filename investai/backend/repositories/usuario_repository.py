@@ -16,7 +16,8 @@ class UsuarioRepository:
         expor na API é a Service (AutenticarUsuarioService), não a
         Repository."""
         sql = text("""
-            SELECT id, nome, email, senha_hash, perfil_risco, renda_mensal
+            SELECT id, nome, email, senha_hash, perfil_risco, renda_mensal,
+                   despesa_mensal_estimada
             FROM usuario
             WHERE email = :email
         """)

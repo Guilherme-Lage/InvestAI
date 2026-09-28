@@ -11,10 +11,14 @@ class AtualizarUsuarioService:
             return None
 
         renda_mensal = dados.get("renda_mensal")
+        despesa_estimada = dados.get("despesa_mensal_estimada")
         usuario.atualizar(
             nome=dados.get("nome"),
             email=dados.get("email"),
             perfil_risco=dados.get("perfil_risco"),
             renda_mensal=float(renda_mensal) if renda_mensal is not None else None,
+            despesa_mensal_estimada=(
+                float(despesa_estimada) if despesa_estimada is not None else None
+            ),
         )
         return usuario.to_dict()

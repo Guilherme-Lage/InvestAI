@@ -1,4 +1,7 @@
-from repositories import MetaRepository, MovimentacaoRepository
+from repositories import MetaRepository
+from services.movimentacao.calcular_despesa_media_service import (
+    CalcularDespesaMediaService,
+)
 
 MULTIPLICADOR_RESERVA_EMERGENCIA = 3  # RF14/RF15 - 3x a despesa média mensal
 
@@ -9,7 +12,7 @@ class CalcularStatusReservaEmergenciaService:
     e se as sugestões de investimento já estão liberadas."""
 
     def executar(self, usuario_id):
-        despesa_media = MovimentacaoRepository.media_gastos_mensais(usuario_id, meses=3)
+        despesa_media = CalcularDespesaMediaService().executar(usuario_id)
         alvo_ideal = despesa_media * MULTIPLICADOR_RESERVA_EMERGENCIA
 
         reserva = MetaRepository.buscar_reserva_emergencia(usuario_id)

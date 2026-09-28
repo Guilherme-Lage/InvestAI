@@ -153,6 +153,8 @@ class ApiService {
     required String senha,
     required String perfilRisco,
     required double rendaMensal,
+    required double despesaMensalEstimada,
+    required double despesaFixaEstimada,
   }) async {
     try {
       final body = jsonEncode({
@@ -161,6 +163,8 @@ class ApiService {
         'senha': senha,
         'perfil_risco': perfilRisco,
         'renda_mensal': rendaMensal,
+        'despesa_mensal_estimada': despesaMensalEstimada,
+        'despesa_fixa_estimada': despesaFixaEstimada,
       });
 
       final response = await http.post(
@@ -250,11 +254,11 @@ class ApiService {
     }
   }
 
-  static Future<dynamic> _post(String caminho, Map<String, dynamic> corpo) async {
+  static Future<dynamic> _post(String caminho, Map<String, dynamic> corpo, [Duration? timeout]) async {
     try {
       final response = await http
           .post(Uri.parse('$baseUrl$caminho'), headers: await _headers(), body: jsonEncode(corpo))
-          .timeout(const Duration(seconds: 10));
+          .timeout(timeout ?? const Duration(seconds: 10));
       return await _tratarResposta(response);
     } on ApiException {
       rethrow;
@@ -433,6 +437,19 @@ class ApiService {
     // hipótese (cache ainda frio logo após o servidor subir) a primeira
     // busca pode levar dezenas de segundos - daí o timeout maior aqui.
     return await _get('/api/mercado/tesouro', null, const Duration(seconds: 40)) as Map<String, dynamic>;
+  }
+
+  // ─── Assistente de IA (n8n) ─────────────────────────────────────────────────
+
+  static Future<String> perguntarIa(String pergunta) async {
+    // A resposta passa por um modelo de linguagem, que costuma demorar
+    // bem mais que uma consulta comum ao banco.
+    final corpo = await _post(
+      '/api/ia/perguntar',
+      {'pergunta': pergunta},
+      const Duration(seconds: 60),
+    ) as Map<String, dynamic>;
+    return corpo['resposta'] as String;
   }
 }
 

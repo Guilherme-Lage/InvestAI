@@ -39,6 +39,16 @@ class CriarUsuarioService:
         if renda_mensal < 0:
             raise ValueError("Renda mensal não pode ser negativa.")
 
+        try:
+            despesa_estimada = float(dados.get("despesa_mensal_estimada") or 0)
+            despesa_fixa = float(dados.get("despesa_fixa_estimada") or 0)
+        except (TypeError, ValueError):
+            raise ValueError("Despesa mensal estimada inválida.")
+        if despesa_estimada < 0 or despesa_fixa < 0:
+            raise ValueError("Despesa mensal estimada não pode ser negativa.")
+        if despesa_fixa > despesa_estimada:
+            raise ValueError("A despesa fixa não pode ser maior que a despesa total.")
+
         perfil_risco = dados.get("perfil_risco", "conservador")
         if perfil_risco not in ("conservador", "moderado", "arrojado"):
             raise ValueError("Perfil de risco inválido.")
@@ -48,6 +58,8 @@ class CriarUsuarioService:
             email=email,
             perfil_risco=perfil_risco,
             renda_mensal=renda_mensal,
+            despesa_mensal_estimada=despesa_estimada,
+            despesa_fixa_estimada=despesa_fixa,
         )
         usuario.definir_senha(senha)
         usuario.salvar()

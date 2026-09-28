@@ -5,6 +5,19 @@ from services.meta.calcular_status_reserva_emergencia_service import (
     MULTIPLICADOR_RESERVA_EMERGENCIA,
 )
 from services.mercado.buscar_taxas_mercado_service import BuscarTaxasMercadoService
+from services.movimentacao.analisar_composicao_gastos_service import (
+    AnalisarComposicaoGastosService,
+)
+
+ROTULOS_CATEGORIA = {
+    "alimentacao": "alimentação",
+    "lazer": "lazer",
+    "contas_fixas": "contas fixas",
+    "transporte": "transporte",
+    "saude": "saúde",
+    "educacao": "educação",
+    "outros": "outros",
+}
 
 # RF16 - sugestões de investimento adaptadas ao perfil de investidor do
 # usuário (RF18). A trilha em si é educativa e fixa (sem recomendar um
@@ -55,6 +68,8 @@ class GerarGuiaFinanceiroService:
 
         saldo = CalcularSaldoService().executar(usuario_id)
         reserva = CalcularStatusReservaEmergenciaService().executar(usuario_id)
+        composicao = None
+        faltante = 0.0
 
         if saldo < 0:
             passo = "saldo_negativo"
@@ -68,12 +83,8 @@ class GerarGuiaFinanceiroService:
             passo = "construir_reserva"
             titulo = "Construa sua reserva de emergência"
             faltante = max(reserva["valor_ideal_reserva"] - reserva["valor_guardado"], 0.0)
-            mensagem = (
-                f"Antes de investir, junte uma reserva de emergência equivalente a "
-                f"{MULTIPLICADOR_RESERVA_EMERGENCIA}x sua despesa "
-                f"média mensal (R$ {reserva['valor_ideal_reserva']:.2f}). "
-                f"Faltam R$ {faltante:.2f}."
-            )
+            composicao = AnalisarComposicaoGastosService().executar(usuario_id)
+            mensagem = self._mensagem_reserva(reserva, faltante, composicao)
         else:
             passo = "pronto_para_investir"
             titulo = "Você está pronto para investir"
@@ -90,10 +101,80 @@ class GerarGuiaFinanceiroService:
             "reserva": reserva,
         }
 
+        if passo == "construir_reserva":
+            resultado["composicao_gastos"] = composicao
+            resultado["meses_estimados"] = self._meses_para_juntar(faltante, composicao)
+
         if passo == "pronto_para_investir":
             resultado["sugestoes_investimento"] = self._montar_sugestoes(usuario.perfil_risco)
 
         return resultado
+
+    def _meses_para_juntar(self, faltante, composicao):
+        """Quantos meses faltam no ritmo atual. None quando não sobra nada -
+        aí não existe previsão honesta a dar."""
+        if not composicao or composicao["capacidade_mensal"] <= 0:
+            return None
+        return max(1, round(faltante / composicao["capacidade_mensal"]))
+
+    def _mensagem_reserva(self, reserva, faltante, composicao):
+        """A meta continua sendo 3x a despesa (RF14/RF15), mas o conselho
+        muda conforme o motivo de a sobra ser pequena: quem tem gasto
+        flexível consegue cortar, quem só tem gasto fixo não - e nesse caso
+        insistir em corte seria inútil."""
+        base = (
+            f"Antes de investir, junte uma reserva equivalente a "
+            f"{MULTIPLICADOR_RESERVA_EMERGENCIA}x sua despesa média mensal "
+            f"(R$ {reserva['valor_ideal_reserva']:.2f}). "
+            f"Faltam R$ {faltante:.2f}."
+        )
+
+        if not composicao:
+            return base
+
+        capacidade = composicao["capacidade_mensal"]
+        foco = composicao["foco"]
+
+        if foco == "reduzir_flexivel":
+            maior = composicao["maior_gasto_flexivel"]
+            # Só aponta a categoria quando existe histórico real; pela
+            # estimativa do cadastro sabemos o quanto é flexível, mas não onde.
+            if maior:
+                onde = (
+                    f" Seu maior gasto ajustável é "
+                    f"{ROTULOS_CATEGORIA.get(maior['categoria'], maior['categoria'])} "
+                    f"(R$ {maior['total']:.2f}) - reduzir aí é o que mais acelera "
+                    f"sua reserva."
+                )
+            else:
+                onde = (
+                    f" Mas R$ {composicao['despesa_flexivel']:.2f} dos seus gastos não "
+                    f"são fixos: é aí que dá para ganhar tempo. Registre suas despesas "
+                    f"por categoria que eu te mostro onde cortar."
+                )
+            return (
+                f"{base} Hoje sobram R$ {capacidade:.2f} por mês "
+                f"({composicao['percentual_capacidade']:.0f}% da sua renda), o que é "
+                f"pouco para essa meta.{onde}"
+            )
+
+        if foco == "aumentar_renda":
+            return (
+                f"{base} Das suas despesas, R$ {composicao['despesa_obrigatoria']:.2f} "
+                f"são fixas (moradia, transporte, saúde, educação) - ou seja, quase "
+                f"não há o que cortar, e tentar cortar não vai resolver. Sua reserva "
+                f"vai ser construída devagar mesmo, e tudo bem: guarde o que der, no "
+                f"seu ritmo. O que realmente muda esse cenário é aumentar a renda."
+            )
+
+        meses = self._meses_para_juntar(faltante, composicao)
+        if meses:
+            return (
+                f"{base} Guardando os R$ {capacidade:.2f} que sobram por mês, você "
+                f"chega lá em cerca de {meses} "
+                f"{'mês' if meses == 1 else 'meses'}."
+            )
+        return base
 
     def _montar_sugestoes(self, perfil_risco):
         base = SUGESTOES_POR_PERFIL.get(perfil_risco, SUGESTOES_POR_PERFIL["conservador"])

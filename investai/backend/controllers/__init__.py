@@ -5,6 +5,7 @@ from .meta_controller import meta_bp
 from .limite_categoria_controller import limite_bp
 from .orientacao_controller import orientacao_bp
 from .mercado_controller import mercado_bp
+from .ia_controller import ia_bp
 
 __all__ = [
     "usuario_bp",
@@ -14,4 +15,5 @@ __all__ = [
     "limite_bp",
     "orientacao_bp",
     "mercado_bp",
+    "ia_bp",
 ]
