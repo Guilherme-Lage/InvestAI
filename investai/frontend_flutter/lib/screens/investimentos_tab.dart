@@ -163,6 +163,9 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
                           _InvestimentoCard(investimento: i, reais: _reais, onExcluir: () => _remover(i)),
 
                       const SizedBox(height: 24),
+                      _Simulador(reais: _reais),
+
+                      const SizedBox(height: 24),
                       _SecaoSugestoes(guia: _guia, reais: _reais),
 
                       if (_guia?['passo'] == 'pronto_para_investir') ...[
@@ -172,6 +175,285 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
                     ],
                   ),
                 ),
+    );
+  }
+}
+
+/// Simulador de aporte: mostra quanto um valor inicial mais aportes
+/// mensais renderiam em cada aplicação, com as taxas oficiais do dia.
+/// Serve para tornar o juro composto concreto - a pesquisa do relatório
+/// apontou falta de conhecimento como principal barreira para investir.
+class _Simulador extends StatefulWidget {
+  final String Function(num) reais;
+  const _Simulador({required this.reais});
+
+  @override
+  State<_Simulador> createState() => _SimuladorState();
+}
+
+class _SimuladorState extends State<_Simulador> {
+  final _inicialCtrl = TextEditingController();
+  final _aporteCtrl = TextEditingController(text: '200');
+
+  bool _carregando = false;
+  String? _erro;
+  Map<String, dynamic>? _resultado;
+  int _prazoSelecionado = 0;
+
+  @override
+  void dispose() {
+    _inicialCtrl.dispose();
+    _aporteCtrl.dispose();
+    super.dispose();
+  }
+
+  double _valor(TextEditingController c) {
+    final t = c.text.trim();
+    if (t.isEmpty) return 0;
+    final normalizado =
+        t.contains(',') ? t.replaceAll('.', '').replaceAll(',', '.') : t;
+    return double.tryParse(normalizado) ?? 0;
+  }
+
+  Future<void> _simular() async {
+    final inicial = _valor(_inicialCtrl);
+    final aporte = _valor(_aporteCtrl);
+    if (inicial <= 0 && aporte <= 0) {
+      setState(() => _erro = 'Informe um valor inicial ou um aporte mensal.');
+      return;
+    }
+
+    setState(() {
+      _carregando = true;
+      _erro = null;
+    });
+
+    try {
+      final r = await ApiService.simularAporte(
+          valorInicial: inicial, aporteMensal: aporte);
+      if (!mounted) return;
+      setState(() {
+        _resultado = r;
+        _carregando = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = 'Não consegui simular agora. Tente de novo.';
+        _carregando = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final aplicacoes =
+        (_resultado?['aplicacoes'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final prazos =
+        (_resultado?['prazos_meses'] as List?)?.cast<int>() ?? const <int>[];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: InvestAITheme.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: InvestAITheme.borda),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.calculate_outlined,
+                  color: InvestAITheme.verde, size: 18),
+              const SizedBox(width: 8),
+              Text('E se eu guardasse?',
+                  style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: InvestAITheme.texto)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('Veja quanto renderia em cada aplicação, com as taxas de hoje.',
+              style:
+                  GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza)),
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _inicialCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(color: InvestAITheme.texto),
+                  decoration: const InputDecoration(
+                    labelText: 'Tenho hoje',
+                    hintText: '0,00',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _aporteCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(color: InvestAITheme.texto),
+                  decoration: const InputDecoration(
+                    labelText: 'Por mês',
+                    hintText: '0,00',
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _carregando ? null : _simular,
+              child: _carregando
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.2, color: InvestAITheme.verdeEscuro))
+                  : const Text('Simular'),
+            ),
+          ),
+
+          if (_erro != null) ...[
+            const SizedBox(height: 12),
+            Text(_erro!,
+                style: GoogleFonts.inter(
+                    fontSize: 12, color: InvestAITheme.vermelho)),
+          ],
+
+          if (aplicacoes.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                for (var i = 0; i < prazos.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(_rotuloPrazo(prazos[i])),
+                      selected: _prazoSelecionado == i,
+                      onSelected: (_) =>
+                          setState(() => _prazoSelecionado = i),
+                      labelStyle: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _prazoSelecionado == i
+                            ? InvestAITheme.verdeEscuro
+                            : InvestAITheme.cinza,
+                      ),
+                      selectedColor: InvestAITheme.verde,
+                      backgroundColor: InvestAITheme.fundo,
+                      side: const BorderSide(color: InvestAITheme.borda),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            for (var i = 0; i < aplicacoes.length; i++)
+              _LinhaSimulacao(
+                aplicacao: aplicacoes[i],
+                indicePrazo: _prazoSelecionado,
+                destaque: i == 0,
+                reais: widget.reais,
+              ),
+            const SizedBox(height: 10),
+            Text(
+              'Projeção com as taxas de hoje mantidas constantes. '
+              'Rendimento passado ou atual não garante o futuro.',
+              style: GoogleFonts.inter(
+                  fontSize: 10.5, color: InvestAITheme.cinza, height: 1.4),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _rotuloPrazo(int meses) {
+    if (meses % 12 != 0) return '$meses meses';
+    final anos = meses ~/ 12;
+    return anos == 1 ? '1 ano' : '$anos anos';
+  }
+}
+
+class _LinhaSimulacao extends StatelessWidget {
+  final Map<String, dynamic> aplicacao;
+  final int indicePrazo;
+  final bool destaque;
+  final String Function(num) reais;
+
+  const _LinhaSimulacao({
+    required this.aplicacao,
+    required this.indicePrazo,
+    required this.destaque,
+    required this.reais,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final projecoes =
+        (aplicacao['projecoes'] as List).cast<Map<String, dynamic>>();
+    final p = projecoes[indicePrazo.clamp(0, projecoes.length - 1)];
+    final cor = destaque ? InvestAITheme.verde : InvestAITheme.texto;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: destaque
+            ? InvestAITheme.verde.withValues(alpha: 0.08)
+            : InvestAITheme.fundo,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: destaque
+              ? InvestAITheme.verde.withValues(alpha: 0.4)
+              : InvestAITheme.borda,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(aplicacao['nome'] as String,
+                    style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: cor)),
+                Text('${aplicacao['taxa_anual']}% ao ano',
+                    style: GoogleFonts.inter(
+                        fontSize: 11, color: InvestAITheme.cinza)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(reais(p['valor_final'] as num),
+                  style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: cor)),
+              Text('rende ${reais(p['rendimento'] as num)}',
+                  style: GoogleFonts.inter(
+                      fontSize: 11, color: InvestAITheme.cinza)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
