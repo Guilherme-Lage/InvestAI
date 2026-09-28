@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/usuario.dart';
 import '../theme.dart';
+import 'chat_ia_screen.dart';
 import 'dashboard_tab.dart';
 import 'report_tab.dart';
 import 'metas_tab.dart';
@@ -46,8 +47,40 @@ class _HomeScreenState extends State<HomeScreen> {
       PerfilTab(usuario: _usuario, aoAtualizarUsuario: _atualizarUsuario),
     ];
 
+    // Metas, Relatório e Investir têm o próprio "+" ocupando a base do
+    // canto (de 16 a 72); nessas o chat fica acima dele. Nas outras ele
+    // desce para o lugar do "+", para não sobrar um vão vazio embaixo.
+    const abasComBotaoAdicionar = {1, 2, 3};
+    final alturaChat = abasComBotaoAdicionar.contains(_abaAtual) ? 88.0 : 16.0;
+
     return Scaffold(
-      body: SafeArea(child: abas[_abaAtual]),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            abas[_abaAtual],
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              right: 16,
+              bottom: alturaChat,
+              child: FloatingActionButton(
+                heroTag: 'fab_chat_ia',
+                backgroundColor: InvestAITheme.card,
+                foregroundColor: InvestAITheme.verde,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: InvestAITheme.verde, width: 1.5),
+                ),
+                tooltip: 'Falar com o assistente',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ChatIaScreen()),
+                ),
+                child: const Icon(Icons.auto_awesome_rounded),
+              ),
+            ),
+          ],
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _abaAtual,
         onDestinationSelected: _irParaAba,

@@ -10,6 +10,7 @@ class InvestAITheme {
   static const Color texto = Color(0xFFE8F5EF);
   static const Color cinza = Color(0xFF8AA79A);
   static const Color vermelho = Color(0xFFFF6B6B);
+  static const Color amarelo = Color(0xFFFFB020);
   static const Color verdeEscuro = Color(0xFF05231A);
 
   static ThemeData get theme => ThemeData(

@@ -154,6 +154,30 @@ exigem `Authorization: Bearer <token>` e operam sobre o usuário autenticado.
 | GET | `/api/orientacao/guia` | Guia financeiro passo a passo (RF16) |
 | GET | `/api/orientacao/score` | Score financeiro, 0–1000 (RF20) |
 
+### Assistente de IA
+
+| Método | Rota | Ação |
+|--------|------|------|
+| POST | `/api/ia/perguntar` | Envia a pergunta do usuário ao agente de IA e devolve a resposta |
+
+A inteligência em si roda fora do Flask, num agente construído no **n8n**, que o
+backend consulta via webhook — o mesmo padrão já usado para as APIs externas de
+mercado. Junto da pergunta vai um retrato financeiro do usuário (saldo,
+capacidade de economia, gastos por categoria, reserva de emergência, perfil de
+risco e score), para que a resposta seja personalizada em vez de genérica, e
+para que a IA respeite a regra de RF14/RF15 (só sugerir investimento depois da
+reserva formada).
+
+Configuração (variáveis de ambiente do backend):
+
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `N8N_WEBHOOK_URL` | sim | URL de produção do webhook do workflow no n8n |
+| `N8N_API_KEY` | não | Enviada no header `X-API-Key`, se o webhook exigir autenticação |
+
+Sem `N8N_WEBHOOK_URL` definida, a rota responde `503` com uma mensagem clara e o
+app mostra o aviso no chat — nada quebra.
+
 ## Requisitos funcionais implementados (RF01–RF20)
 
 | RF | Descrição | Onde |
@@ -201,6 +225,7 @@ Controller (classe) → Service (`executar()`) → Model/Repository → Banco de
 18. Consultar cotação do dólar com histórico (integração externa — AwesomeAPI) — `MercadoController.dolar` → `BuscarCotacaoDolarService`
 19. Consultar taxas oficiais Selic/CDI/IPCA (integração externa — Banco Central) — `MercadoController.taxas` → `BuscarTaxasMercadoService`
 20. Consultar títulos do Tesouro Direto ofertados agora (integração externa — Tesouro Transparente) — `MercadoController.tesouro` → `BuscarTitulosTesouroService`
+21. Conversar com o assistente de IA sobre a própria situação financeira (integração externa — agente no n8n) — `IaController.perguntar` → `ConsultarIaService`
 
 ## Funcionalidades (telas do app Flutter)
 

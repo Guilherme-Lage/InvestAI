@@ -14,6 +14,7 @@ from controllers import (
     limite_bp,
     orientacao_bp,
     mercado_bp,
+    ia_bp,
 )
 from services.mercado.buscar_cotacao_dolar_service import BuscarCotacaoDolarService
 from services.mercado.buscar_taxas_mercado_service import BuscarTaxasMercadoService
@@ -64,6 +65,7 @@ def criar_app():
     app.register_blueprint(limite_bp)
     app.register_blueprint(orientacao_bp)
     app.register_blueprint(mercado_bp)
+    app.register_blueprint(ia_bp)
 
     with app.app_context():
         db.create_all()
@@ -82,7 +84,7 @@ def criar_app():
             "recursos": ["/api/usuarios", "/api/movimentacoes",
                          "/api/investimentos", "/api/metas",
                          "/api/limites", "/api/orientacao",
-                         "/api/mercado"]
+                         "/api/mercado", "/api/ia"]
         })
 
     return app
