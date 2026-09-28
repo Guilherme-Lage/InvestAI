@@ -432,6 +432,19 @@ class ApiService {
     return await _get('/api/mercado/taxas') as Map<String, dynamic>;
   }
 
+  /// Projeta quanto o valor inicial + aportes mensais renderiam em cada
+  /// aplicação, com as taxas oficiais do dia.
+  static Future<Map<String, dynamic>> simularAporte({
+    required double valorInicial,
+    required double aporteMensal,
+  }) async {
+    final corpo = await _post('/api/investimentos/simular', {
+      'valor_inicial': valorInicial,
+      'aporte_mensal': aporteMensal,
+    }, const Duration(seconds: 20));
+    return corpo as Map<String, dynamic>;
+  }
+
   static Future<Map<String, dynamic>> titulosTesouro() async {
     // O backend pré-aquece esse cache em segundo plano, mas na pior
     // hipótese (cache ainda frio logo após o servidor subir) a primeira
