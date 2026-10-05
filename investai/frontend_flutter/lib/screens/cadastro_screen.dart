@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
-import 'home_screen.dart';
+import 'onboarding_screen.dart';
 
 /// Converte texto digitado em número aceitando os dois formatos que o
 /// usuário pode usar: "1.234,56" (padrão brasileiro) e "1234.56".
@@ -170,9 +170,12 @@ class _CadastroScreenState extends State<CadastroScreen> {
     setState(() => _carregando = false);
 
     if (resultado.sucesso) {
+      // Conta recém-criada: a jornada do app é explicada antes da primeira
+      // tela, para a aba Investir bloqueada fazer sentido.
       Navigator.of(context).pushAndRemoveUntil(
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => HomeScreen(usuario: resultado.usuario!),
+          pageBuilder: (_, __, ___) =>
+              OnboardingScreen(usuario: resultado.usuario!),
           transitionsBuilder: (_, anim, __, child) =>
               FadeTransition(opacity: anim, child: child),
           transitionDuration: const Duration(milliseconds: 400),

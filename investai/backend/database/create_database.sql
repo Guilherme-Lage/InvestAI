@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS investimento (
     tipo              VARCHAR(40)   NOT NULL,  -- ex.: Tesouro Selic, CDB, LCI/LCA
     valor_aplicado    DECIMAL(12,2) NOT NULL,
     rendimento_atual  DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    indexador             VARCHAR(20),
+    percentual_indexador  DECIMAL(6,2) NOT NULL DEFAULT 100.00,
+    data_aplicacao        DATE,
     liquidez          VARCHAR(40)   NOT NULL DEFAULT 'diaria',
     usuario_id        INT           NOT NULL,
     data_criacao      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,

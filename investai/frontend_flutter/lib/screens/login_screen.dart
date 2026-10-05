@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../theme.dart';
 import 'cadastro_screen.dart';
 import 'home_screen.dart';
+import 'onboarding_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -58,9 +59,16 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _carregando = false);
 
     if (resultado.sucesso) {
+      // Quem nunca viu a explicação da jornada vê agora, uma única vez.
+      final usuario = resultado.usuario!;
+      final destino = await OnboardingScreen.jaVisto()
+          ? HomeScreen(usuario: usuario)
+          : OnboardingScreen(usuario: usuario);
+
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => HomeScreen(usuario: resultado.usuario!),
+          pageBuilder: (_, __, ___) => destino,
           transitionsBuilder: (_, anim, __, child) =>
               FadeTransition(opacity: anim, child: child),
           transitionDuration: const Duration(milliseconds: 400),

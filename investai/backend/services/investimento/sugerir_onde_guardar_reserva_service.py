@@ -49,6 +49,13 @@ class SugerirOndeGuardarReservaService:
                 "taxa_anual": taxas["selic"],
                 "liquidez": LIQUIDEZ_EXIGIDA,
                 "protecao": "Garantido pelo Tesouro Nacional",
+                "recomendado": True,
+                # Explica a escolha pela necessidade da pessoa, não pela
+                # característica do produto: 85% dos participantes da
+                # pesquisa declararam pouco ou nenhum conhecimento.
+                "motivo": "Você pode sacar em qualquer dia útil sem perder o "
+                          "que já rendeu — que é exatamente o que uma reserva "
+                          "precisa fazer quando aparece um imprevisto.",
                 "descricao": "Resgate em qualquer dia útil, sem perder o que "
                              "já rendeu. É o mais usado para reserva.",
             },

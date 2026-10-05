@@ -8,6 +8,7 @@ import '../models/movimentacao.dart';
 import '../models/meta.dart';
 import '../models/investimento.dart';
 import '../models/limite_categoria.dart';
+import '../screens/chat_ia_screen.dart' show limparConversaIa;
 import '../screens/login_screen.dart';
 
 /// Erro de uma chamada à API, com a mensagem já pronta para mostrar ao
@@ -61,6 +62,9 @@ class ApiService {
     await prefs.remove(_userNomeKey);
     await prefs.remove(_userEmailKey);
     await prefs.remove(_tokenKey);
+    // A conversa com a IA fala de dinheiro: não pode sobrar para quem
+    // entrar depois no mesmo aparelho.
+    await limparConversaIa();
   }
 
   static Future<String?> _token() async {
@@ -430,6 +434,13 @@ class ApiService {
 
   static Future<Map<String, dynamic>> taxasMercado() async {
     return await _get('/api/mercado/taxas') as Map<String, dynamic>;
+  }
+
+  /// Quanto o usuário deixa de ganhar por ano mantendo cada investimento
+  /// onde está, frente à melhor alternativa de liquidez equivalente.
+  static Future<Map<String, dynamic>> compararCarteira() async {
+    return await _get('/api/investimentos/comparar', null,
+        const Duration(seconds: 20)) as Map<String, dynamic>;
   }
 
   /// Projeta quanto o valor inicial + aportes mensais renderiam em cada

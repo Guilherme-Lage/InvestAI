@@ -7,6 +7,19 @@ class Investimento {
   final double rendimentoAtual;
   final String liquidez;
 
+  /// Índice que o investimento acompanha (selic, cdi, ipca, poupanca).
+  /// Quando presente, o rendimento é calculado pelo backend a partir das
+  /// taxas do dia, em vez de depender do usuário atualizar na mão.
+  final String? indexador;
+  final double percentualIndexador;
+  final String? dataAplicacao;
+
+  /// Preenchidos pelo backend na listagem, a partir das taxas atuais.
+  final double valorAtual;
+  final double rendimentoPercentual;
+  final double? taxaAnual;
+  final bool calculadoAutomaticamente;
+
   Investimento({
     this.id,
     required this.nome,
@@ -14,16 +27,32 @@ class Investimento {
     required this.valorAplicado,
     required this.rendimentoAtual,
     required this.liquidez,
-  });
+    this.indexador,
+    this.percentualIndexador = 100,
+    this.dataAplicacao,
+    double? valorAtual,
+    this.rendimentoPercentual = 0,
+    this.taxaAnual,
+    this.calculadoAutomaticamente = false,
+  }) : valorAtual = valorAtual ?? (valorAplicado + rendimentoAtual);
 
   factory Investimento.fromJson(Map<String, dynamic> json) {
+    final aplicado = (json['valor_aplicado'] ?? 0).toDouble();
+    final rendimento = (json['rendimento_atual'] ?? 0).toDouble();
     return Investimento(
       id: json['id'],
       nome: json['nome'] ?? '',
       tipo: json['tipo'] ?? '',
-      valorAplicado: (json['valor_aplicado'] ?? 0).toDouble(),
-      rendimentoAtual: (json['rendimento_atual'] ?? 0).toDouble(),
+      valorAplicado: aplicado,
+      rendimentoAtual: (json['rendimento'] ?? rendimento).toDouble(),
       liquidez: json['liquidez'] ?? 'diaria',
+      indexador: json['indexador'],
+      percentualIndexador: (json['percentual_indexador'] ?? 100).toDouble(),
+      dataAplicacao: json['data_aplicacao'],
+      valorAtual: (json['valor_atual'] as num?)?.toDouble(),
+      rendimentoPercentual: (json['rendimento_percentual'] ?? 0).toDouble(),
+      taxaAnual: (json['taxa_anual'] as num?)?.toDouble(),
+      calculadoAutomaticamente: json['calculado_automaticamente'] == true,
     );
   }
 
@@ -34,8 +63,24 @@ class Investimento {
       'valor_aplicado': valorAplicado,
       'rendimento_atual': rendimentoAtual,
       'liquidez': liquidez,
+      if (indexador != null) 'indexador': indexador,
+      'percentual_indexador': percentualIndexador,
+      if (dataAplicacao != null) 'data_aplicacao': dataAplicacao,
     };
   }
+}
+
+/// Índices que o app sabe acompanhar sozinho.
+class Indexadores {
+  static const Map<String, String> rotulos = {
+    'selic': 'Tesouro Selic (segue a Selic)',
+    'cdi': 'CDB / LCI (segue o CDI)',
+    'ipca': 'Tesouro IPCA+ (inflação + juro real)',
+    'poupanca': 'Poupança',
+  };
+
+  static String rotulo(String? chave) =>
+      chave == null ? 'Não acompanhar automaticamente' : (rotulos[chave] ?? chave);
 }
 
 /// RF16 - sugestão de investimento devolvida pelo guia financeiro,

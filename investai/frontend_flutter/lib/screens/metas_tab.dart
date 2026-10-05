@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/meta.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../widgets/glossario.dart';
+import 'chat_ia_screen.dart';
 
 /// RF06 - criar metas; RF07 - acompanhar progresso; RF14/RF15 - reserva
 /// de emergência antes de liberar sugestões de investimento; RF17 -
@@ -635,26 +637,40 @@ class _FormularioMetaState extends State<_FormularioMeta> {
 /// RF15: aquela regra bloqueia investir para crescer, mas a reserva
 /// precisa ficar em algum lugar - e parada na conta ela perde para a
 /// inflação todo mês.
-class _OndeGuardarReserva extends StatelessWidget {
+class _OndeGuardarReserva extends StatefulWidget {
   final Map<String, dynamic> dados;
   final String Function(num) reais;
 
   const _OndeGuardarReserva({required this.dados, required this.reais});
 
   @override
+  State<_OndeGuardarReserva> createState() => _OndeGuardarReservaState();
+}
+
+class _OndeGuardarReservaState extends State<_OndeGuardarReserva> {
+  bool _mostrarOutras = false;
+
+  @override
   Widget build(BuildContext context) {
-    final opcoes = (dados['opcoes'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final opcoes =
+        (widget.dados['opcoes'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     if (opcoes.isEmpty) return const SizedBox.shrink();
 
-    final perda = (dados['perda_anual_se_parado'] ?? 0) as num;
-    final valor = (dados['valor_considerado'] ?? 0) as num;
+    // A primeira é a recomendada; as demais só aparecem se a pessoa pedir.
+    // Mostrar três opções de uma vez não ensina ninguém a escolher - e 85%
+    // dos participantes da pesquisa declararam pouco ou nenhum conhecimento.
+    final recomendada = opcoes.first;
+    final outras = opcoes.skip(1).toList();
+    final perda = (widget.dados['perda_anual_se_parado'] ?? 0) as num;
+    final valor = (widget.dados['valor_considerado'] ?? 0) as num;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Icon(Icons.savings_outlined, color: InvestAITheme.verde, size: 18),
+            const Icon(Icons.savings_outlined,
+                color: InvestAITheme.verde, size: 18),
             const SizedBox(width: 8),
             Expanded(
               child: Text('Onde deixar sua reserva enquanto junta',
@@ -665,103 +681,185 @@ class _OndeGuardarReserva extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Reserva não é dinheiro parado: ela precisa render, mas com resgate '
-          'em qualquer dia. Por isso só entram aplicações de liquidez diária.',
-          style: GoogleFonts.inter(
-              fontSize: 12, color: InvestAITheme.cinza, height: 1.4),
-        ),
         const SizedBox(height: 12),
 
-        for (final o in opcoes)
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(
-              color: InvestAITheme.card,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: InvestAITheme.borda),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(o['nome'] ?? '',
-                          style: GoogleFonts.inter(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: InvestAITheme.texto)),
-                    ),
-                    Text('${o['taxa_anual']}% a.a.',
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: InvestAITheme.verde.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border:
+                Border.all(color: InvestAITheme.verde.withValues(alpha: 0.4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Para você, agora',
+                  style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: InvestAITheme.verde)),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(recomendada['nome'] ?? '',
                         style: GoogleFonts.inter(
-                            fontSize: 13,
+                            fontSize: 17,
                             fontWeight: FontWeight.w800,
-                            color: InvestAITheme.verde)),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Text(o['descricao'] ?? '',
-                    style: GoogleFonts.inter(
-                        fontSize: 11.5,
-                        color: InvestAITheme.cinza,
-                        height: 1.35)),
-                const SizedBox(height: 7),
-                Row(
-                  children: [
-                    const Icon(Icons.verified_user_outlined,
-                        size: 13, color: InvestAITheme.cinza),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(o['protecao'] ?? '',
-                          style: GoogleFonts.inter(
-                              fontSize: 11, color: InvestAITheme.cinza)),
-                    ),
-                    if (valor > 0)
-                      Text('+${reais(o['rendimento_ano'] ?? 0)}/ano',
-                          style: GoogleFonts.inter(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: InvestAITheme.verde)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-        // O custo de não fazer nada, que costuma passar despercebido.
-        if (perda > 0)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: InvestAITheme.amarelo.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                  color: InvestAITheme.amarelo.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.trending_down_rounded,
-                    size: 16, color: InvestAITheme.amarelo),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Parada na conta, sua reserva perde cerca de '
-                    '${reais(perda)} por ano para a inflação '
-                    '(IPCA ${dados['ipca']}%).',
-                    style: GoogleFonts.inter(
-                        fontSize: 11.5,
-                        color: InvestAITheme.amarelo,
-                        height: 1.4),
+                            color: InvestAITheme.texto)),
                   ),
+                  Text('${recomendada['taxa_anual']}% ao ano',
+                      style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: InvestAITheme.verde)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Termos técnicos viram tocáveis: tocar abre a explicação.
+              TextoComGlossario(
+                recomendada['motivo'] ?? recomendada['descricao'] ?? '',
+                estilo: GoogleFonts.inter(
+                    fontSize: 12.5, color: InvestAITheme.texto, height: 1.5),
+              ),
+              if (valor > 0) ...[
+                const SizedBox(height: 10),
+                Text(
+                  'Seus ${widget.reais(valor)} renderiam '
+                  '${widget.reais(recomendada['rendimento_ano'] ?? 0)} no próximo ano.',
+                  style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: InvestAITheme.verde),
                 ),
               ],
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.verified_user_outlined,
+                      size: 13, color: InvestAITheme.cinza),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(recomendada['protecao'] ?? '',
+                        style: GoogleFonts.inter(
+                            fontSize: 11, color: InvestAITheme.cinza)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => ChatIaScreen(
+                    perguntaInicial:
+                        'Me explica o que é ${recomendada['nome']} como se eu '
+                        'nunca tivesse investido, e como eu faço para aplicar '
+                        'minha reserva lá.',
+                  ),
+                )),
+                icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                label: const Text('Me explica isso'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: InvestAITheme.verde,
+                  side: BorderSide(
+                      color: InvestAITheme.verde.withValues(alpha: 0.5)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: GoogleFonts.inter(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        if (perda > 0) ...[
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.trending_down_rounded,
+                  size: 15, color: InvestAITheme.amarelo),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'Parada na conta, ela perde cerca de '
+                  '${widget.reais(perda)} por ano para a inflação.',
+                  style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      color: InvestAITheme.amarelo,
+                      height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ],
+
+        if (outras.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: () => setState(() => _mostrarOutras = !_mostrarOutras),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              _mostrarOutras
+                  ? 'Esconder outras opções'
+                  : 'Ver outras ${outras.length} opções',
+              style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: InvestAITheme.verde),
             ),
           ),
+          if (_mostrarOutras)
+            for (final o in outras)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: InvestAITheme.card,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: InvestAITheme.borda),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(o['nome'] ?? '',
+                              style: GoogleFonts.inter(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: InvestAITheme.texto)),
+                        ),
+                        Text('${o['taxa_anual']}% a.a.',
+                            style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: InvestAITheme.verde)),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(o['descricao'] ?? '',
+                        style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            color: InvestAITheme.cinza,
+                            height: 1.35)),
+                    const SizedBox(height: 6),
+                    Text(o['protecao'] ?? '',
+                        style: GoogleFonts.inter(
+                            fontSize: 11, color: InvestAITheme.cinza)),
+                  ],
+                ),
+              ),
+        ],
       ],
     );
   }

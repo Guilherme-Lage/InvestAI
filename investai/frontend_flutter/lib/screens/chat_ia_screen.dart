@@ -1,7 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api_service.dart';
 import '../theme.dart';
+
+/// Guarda a conversa no aparelho. Sem isso a tela abria em branco a cada
+/// visita, enquanto a memória do agente continuava lembrando de tudo - a
+/// pessoa repetia a pergunta e recebia "como eu disse antes...".
+const _chaveConversa = 'conversa_ia';
+const _limiteMensagens = 60;
 
 class _Mensagem {
   final String texto;
@@ -9,29 +18,105 @@ class _Mensagem {
   final bool erro;
 
   const _Mensagem(this.texto, {required this.doUsuario, this.erro = false});
+
+  Map<String, dynamic> paraJson() =>
+      {'t': texto, 'u': doUsuario, 'e': erro};
+
+  factory _Mensagem.doJson(Map<String, dynamic> json) => _Mensagem(
+        json['t'] ?? '',
+        doUsuario: json['u'] == true,
+        erro: json['e'] == true,
+      );
+}
+
+/// Apaga a conversa salva. Chamado no logout para a conversa de um usuário
+/// não aparecer para quem entrar depois no mesmo aparelho.
+Future<void> limparConversaIa() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_chaveConversa);
+  } catch (_) {
+    // Sem preferências não há o que limpar.
+  }
 }
 
 /// Chat com o assistente de IA do InvestAI. A inteligência em si roda num
 /// agente externo (n8n); aqui só enviamos a pergunta e mostramos a resposta.
 class ChatIaScreen extends StatefulWidget {
-  const ChatIaScreen({super.key});
+  /// Pergunta já enviada ao abrir a tela. Usada pelos botões "me explica"
+  /// espalhados pelo app, para a pessoa não precisar formular a dúvida.
+  final String? perguntaInicial;
+
+  const ChatIaScreen({super.key, this.perguntaInicial});
 
   @override
   State<ChatIaScreen> createState() => _ChatIaScreenState();
 }
 
+const _saudacao = _Mensagem(
+  'Oi! Sou o assistente do InvestAI. Posso te ajudar a entender seus '
+  'gastos, sua reserva de emergência e o que faz sentido pro seu perfil. '
+  'O que você quer saber?',
+  doUsuario: false,
+);
+
 class _ChatIaScreenState extends State<ChatIaScreen> {
   final _controlador = TextEditingController();
   final _rolagem = ScrollController();
-  final List<_Mensagem> _mensagens = [
-    const _Mensagem(
-      'Oi! Sou o assistente do InvestAI. Posso te ajudar a entender seus '
-      'gastos, sua reserva de emergência e o que faz sentido pro seu perfil. '
-      'O que você quer saber?',
-      doUsuario: false,
-    ),
-  ];
+  final List<_Mensagem> _mensagens = [_saudacao];
   bool _enviando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restaurarConversa();
+  }
+
+  Future<void> _restaurarConversa() async {
+    List<_Mensagem> salvas = const [];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final bruto = prefs.getString(_chaveConversa);
+      if (bruto != null) {
+        salvas = (jsonDecode(bruto) as List)
+            .map((m) => _Mensagem.doJson(m as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (_) {
+      // Conversa corrompida ou sem acesso ao armazenamento: começa limpa.
+    }
+
+    if (!mounted) return;
+    if (salvas.isNotEmpty) {
+      setState(() {
+        _mensagens
+          ..clear()
+          ..addAll(salvas);
+      });
+      _rolarParaFim();
+    }
+
+    final inicial = widget.perguntaInicial?.trim();
+    if (inicial != null && inicial.isNotEmpty) {
+      _controlador.text = inicial;
+      _enviar();
+    }
+  }
+
+  Future<void> _salvarConversa() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Guarda só o fim da conversa: o histórico completo quem mantém é a
+      // memória do agente, aqui é só o que a tela precisa mostrar.
+      final recorte = _mensagens.length > _limiteMensagens
+          ? _mensagens.sublist(_mensagens.length - _limiteMensagens)
+          : _mensagens;
+      await prefs.setString(_chaveConversa,
+          jsonEncode(recorte.map((m) => m.paraJson()).toList()));
+    } catch (_) {
+      // Não conseguir salvar não pode atrapalhar a conversa em andamento.
+    }
+  }
 
   @override
   void dispose() {
@@ -61,6 +146,7 @@ class _ChatIaScreenState extends State<ChatIaScreen> {
     } finally {
       if (mounted) setState(() => _enviando = false);
       _rolarParaFim();
+      _salvarConversa();
     }
   }
 

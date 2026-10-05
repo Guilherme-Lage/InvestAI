@@ -27,12 +27,18 @@ ROTULOS_CATEGORIA = {
 SUGESTOES_POR_PERFIL = {
     "conservador": [
         {"nome": "Tesouro Selic", "tipo": "Renda fixa", "liquidez": "diaria", "indexador": "selic",
+         "motivo": "Você escolheu o perfil conservador, e este é o investimento "
+                   "mais previsível que existe no país: o valor não cai, e você "
+                   "pode sacar em qualquer dia útil sem susto.",
          "descricao_base": "Baixo risco, ótima liquidez. Bom para reserva e objetivos de curto prazo."},
         {"nome": "CDB 100% do CDI", "tipo": "Renda fixa", "liquidez": "diaria", "indexador": "cdi",
          "descricao_base": "Segurança do FGC, rendimento previsível."},
     ],
     "moderado": [
         {"nome": "Tesouro IPCA+", "tipo": "Renda fixa", "liquidez": "no vencimento", "indexador": "ipca",
+         "motivo": "Ele garante que seu dinheiro cresça acima da inflação — daqui "
+                   "a alguns anos ele ainda vai comprar mais do que compra hoje. "
+                   "Em troca, o ideal é deixar até a data de vencimento.",
          "descricao_base": "Protege da inflação, bom para metas de médio/longo prazo."},
         {"nome": "CDB/LCI de banco médio", "tipo": "Renda fixa", "liquidez": "carencia", "indexador": "cdi",
          "descricao_base": "Rendimento acima da média mantendo baixo risco."},
@@ -41,6 +47,9 @@ SUGESTOES_POR_PERFIL = {
     ],
     "arrojado": [
         {"nome": "Fundos de ações", "tipo": "Renda variável", "liquidez": "diaria", "indexador": None,
+         "motivo": "Você aceita oscilação em troca de retorno maior. Aqui o valor "
+                   "sobe e desce no caminho — por isso faz sentido só para o "
+                   "dinheiro que você não vai precisar tão cedo.",
          "descricao_base": "Maior potencial de retorno no longo prazo, com mais volatilidade."},
         {"nome": "ETFs de índice (ex.: IBOV)", "tipo": "Renda variável", "liquidez": "diaria", "indexador": None,
          "descricao_base": "Diversificação em bolsa com um único ativo."},
@@ -197,5 +206,8 @@ class GerarGuiaFinanceiroService:
                 "tipo": item["tipo"],
                 "liquidez": item["liquidez"],
                 "descricao": descricao,
+                # Só a primeira de cada perfil tem motivo: é a que a tela
+                # destaca. As outras ficam como alternativa, para quem pedir.
+                "motivo": item.get("motivo"),
             })
         return sugestoes
