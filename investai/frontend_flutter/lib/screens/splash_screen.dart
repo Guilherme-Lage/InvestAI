@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../theme.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
+import 'onboarding_screen.dart';
 
 /// Verifica junto ao backend se existe uma sessão (token JWT) válida.
 /// Se sim → vai direto pra Home. Se não (ou expirada/revogada) → Login.
@@ -40,7 +41,14 @@ class _SplashScreenState extends State<SplashScreen>
     // logout anterior) antes de considerar o usuário autenticado.
     final usuario = await ApiService.verificarSessao();
 
-    Widget destino = usuario != null ? HomeScreen(usuario: usuario) : const LoginScreen();
+    Widget destino;
+    if (usuario == null) {
+      destino = const LoginScreen();
+    } else {
+      destino = await OnboardingScreen.jaVisto()
+          ? HomeScreen(usuario: usuario)
+          : OnboardingScreen(usuario: usuario);
+    }
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(

@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/investimento.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../widgets/glossario.dart';
+import 'chat_ia_screen.dart';
 
 /// Investimentos cadastrados pelo usuário + sugestões de investimento
 /// (RF16), liberadas apenas depois da reserva de emergência completa
@@ -22,6 +24,7 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
   Map<String, dynamic>? _score;
   Map<String, dynamic>? _taxas;
   Map<String, dynamic>? _tesouro;
+  Map<String, dynamic>? _comparacao;
 
   @override
   void initState() {
@@ -54,6 +57,15 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
         _carregando = false;
       });
       return;
+    }
+
+    // Depende das taxas externas, então vai junto do bloco tolerante a falha.
+    try {
+      final comparacao = await ApiService.compararCarteira();
+      if (!mounted) return;
+      setState(() => _comparacao = comparacao);
+    } catch (_) {
+      // sem comparação agora; o resto da aba continua funcionando
     }
 
     // Taxas de mercado e títulos do Tesouro são dado externo: carregados
@@ -133,48 +145,239 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
                               fontSize: 24, fontWeight: FontWeight.w800, color: InvestAITheme.texto)),
                       const SizedBox(height: 16),
 
-                      // RF20 - score financeiro
-                      if (_score != null) ...[
-                        _ScoreCard(score: _score!),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // Taxas oficiais atuais (Selic/CDI/IPCA), Banco Central
-                      _MercadoAgora(taxas: _taxas),
-                      const SizedBox(height: 20),
-
+                      // 1. O dinheiro do usuário vem primeiro: é o que ele
+                      // abre a aba para ver.
                       if (_investimentos.isNotEmpty) ...[
                         _ResumoInvestimentos(investimentos: _investimentos, reais: _reais),
                         const SizedBox(height: 20),
-                      ],
 
-                      Text('Sua carteira',
-                          style: GoogleFonts.inter(
-                              fontSize: 15, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
-                      const SizedBox(height: 12),
-                      if (_investimentos.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          child: Text('Você ainda não cadastrou nenhum investimento.',
-                              style: GoogleFonts.inter(fontSize: 13, color: InvestAITheme.cinza)),
-                        )
-                      else
+                        Text('Sua carteira',
+                            style: GoogleFonts.inter(
+                                fontSize: 15, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
+                        const SizedBox(height: 12),
                         for (final i in _investimentos)
                           _InvestimentoCard(investimento: i, reais: _reais, onExcluir: () => _remover(i)),
 
-                      const SizedBox(height: 24),
-                      _Simulador(reais: _reais),
+                        if (_comparacao != null &&
+                            ((_comparacao!['comparacoes'] as List?) ?? []).isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _ComparacaoCarteira(dados: _comparacao!, reais: _reais),
+                        ],
+                        const SizedBox(height: 24),
+                      ],
 
-                      const SizedBox(height: 24),
+                      // 2. Onde ele está na jornada e qual é o próximo passo.
                       _SecaoSugestoes(guia: _guia, reais: _reais),
 
-                      if (_guia?['passo'] == 'pronto_para_investir') ...[
-                        const SizedBox(height: 24),
-                        _TitulosTesouro(tesouro: _tesouro, reais: _reais),
-                      ],
+                      // 3. Ferramenta e referência: ficam fechadas para não
+                      // competir com o que é ação.
+                      const SizedBox(height: 24),
+                      Text('Ferramentas',
+                          style: GoogleFonts.inter(
+                              fontSize: 15, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
+                      const SizedBox(height: 12),
+
+                      _SecaoRecolhivel(
+                        icone: Icons.calculate_outlined,
+                        titulo: 'E se eu guardasse?',
+                        resumo: 'Simule quanto renderia por mês',
+                        child: _Simulador(reais: _reais, semMoldura: true),
+                      ),
+
+                      if (_score != null)
+                        _SecaoRecolhivel(
+                          icone: Icons.speed_rounded,
+                          titulo: 'Seu score financeiro',
+                          resumo: '${_score!['score']} de 1000 · ${_score!['classificacao']}',
+                          child: _ScoreCard(score: _score!, semMoldura: true),
+                        ),
+
+                      _SecaoRecolhivel(
+                        icone: Icons.show_chart_rounded,
+                        titulo: 'Mercado hoje',
+                        resumo: _taxas == null
+                            ? 'Selic, CDI e IPCA'
+                            : 'Selic ${_taxas!['selic']}% · CDI ${_taxas!['cdi']}%',
+                        child: _MercadoAgora(taxas: _taxas, semMoldura: true),
+                      ),
+
+                      // Lista longa de títulos com nomes técnicos: é consulta
+                      // de mercado, não recomendação. Continua só para quem já
+                      // passou da reserva (RF15).
+                      if (_guia?['passo'] == 'pronto_para_investir')
+                        _SecaoRecolhivel(
+                          icone: Icons.account_balance_outlined,
+                          titulo: 'Tesouro Direto agora',
+                          resumo: _tesouro == null
+                              ? 'Títulos públicos à venda hoje'
+                              : 'Atualizado ${_tesouro!['atualizado_em']}',
+                          child: _TitulosTesouro(
+                              tesouro: _tesouro, reais: _reais, semMoldura: true),
+                        ),
+
+                      if (_investimentos.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 20),
+                          child: Text(
+                            'Você ainda não cadastrou nenhum investimento. '
+                            'Use o + para adicionar o primeiro.',
+                            style: GoogleFonts.inter(fontSize: 12.5, color: InvestAITheme.cinza),
+                          ),
+                        ),
                     ],
                   ),
                 ),
+    );
+  }
+}
+
+/// Seção que começa fechada, para a aba não despejar tudo de uma vez.
+/// O `resumo` aparece no cabeçalho mesmo fechada, de modo que a informação
+/// principal continue visível sem precisar abrir.
+class _SecaoRecolhivel extends StatelessWidget {
+  final IconData icone;
+  final String titulo;
+  final String? resumo;
+  final Widget child;
+
+  const _SecaoRecolhivel({
+    required this.icone,
+    required this.titulo,
+    required this.child,
+    this.resumo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: InvestAITheme.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: InvestAITheme.borda),
+      ),
+      child: Theme(
+        // Remove as linhas divisórias padrão do ExpansionTile, que destoam
+        // do resto dos cards.
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          iconColor: InvestAITheme.verde,
+          collapsedIconColor: InvestAITheme.cinza,
+          leading: Icon(icone, color: InvestAITheme.verde, size: 18),
+          title: Text(titulo,
+              style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: InvestAITheme.texto)),
+          subtitle: resumo == null
+              ? null
+              : Text(resumo!,
+                  style: GoogleFonts.inter(
+                      fontSize: 11.5, color: InvestAITheme.cinza)),
+          children: [child],
+        ),
+      ),
+    );
+  }
+}
+
+/// Quanto o usuário deixa de ganhar por ano mantendo cada investimento
+/// onde está. É o mesmo cálculo do simulador, mas apontado para o dinheiro
+/// que a pessoa realmente tem - bem mais difícil de ignorar.
+class _ComparacaoCarteira extends StatelessWidget {
+  final Map<String, dynamic> dados;
+  final String Function(num) reais;
+
+  const _ComparacaoCarteira({required this.dados, required this.reais});
+
+  @override
+  Widget build(BuildContext context) {
+    final comparacoes =
+        (dados['comparacoes'] as List).cast<Map<String, dynamic>>();
+    final total = (dados['ganho_anual_possivel'] ?? 0) as num;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: InvestAITheme.amarelo.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: InvestAITheme.amarelo.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.lightbulb_outline_rounded,
+                  color: InvestAITheme.amarelo, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Seu dinheiro pode render mais',
+                    style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: InvestAITheme.texto)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          for (final c in comparacoes)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${c['investimento']} · ${reais(c['valor_aplicado'])}',
+                    style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: InvestAITheme.texto),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Rende ${c['taxa_atual']}% ao ano. Em ${c['alternativa']} '
+                    '(${c['taxa_alternativa']}%) renderia '
+                    '${reais(c['ganho_anual'])} a mais por ano.',
+                    style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        color: InvestAITheme.cinza,
+                        height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+
+          if (comparacoes.length > 1) ...[
+            const Divider(color: InvestAITheme.borda, height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Total por ano',
+                      style: GoogleFonts.inter(
+                          fontSize: 12, color: InvestAITheme.cinza)),
+                ),
+                Text('+ ${reais(total)}',
+                    style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: InvestAITheme.amarelo)),
+              ],
+            ),
+          ],
+
+          const SizedBox(height: 8),
+          Text(
+            'Comparação apenas entre aplicações de resgate diário, com as '
+            'taxas de hoje. Não é recomendação de compra ou venda.',
+            style: GoogleFonts.inter(
+                fontSize: 10.5, color: InvestAITheme.cinza, height: 1.4),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -185,7 +388,8 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
 /// apontou falta de conhecimento como principal barreira para investir.
 class _Simulador extends StatefulWidget {
   final String Function(num) reais;
-  const _Simulador({required this.reais});
+  final bool semMoldura;
+  const _Simulador({required this.reais, this.semMoldura = false});
 
   @override
   State<_Simulador> createState() => _SimuladorState();
@@ -253,28 +457,32 @@ class _SimuladorState extends State<_Simulador> {
         (_resultado?['prazos_meses'] as List?)?.cast<int>() ?? const <int>[];
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: InvestAITheme.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: InvestAITheme.borda),
-      ),
+      padding: EdgeInsets.all(widget.semMoldura ? 0 : 16),
+      decoration: widget.semMoldura
+          ? null
+          : BoxDecoration(
+              color: InvestAITheme.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: InvestAITheme.borda),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.calculate_outlined,
-                  color: InvestAITheme.verde, size: 18),
-              const SizedBox(width: 8),
-              Text('E se eu guardasse?',
-                  style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: InvestAITheme.texto)),
-            ],
-          ),
-          const SizedBox(height: 4),
+          if (!widget.semMoldura) ...[
+            Row(
+              children: [
+                const Icon(Icons.calculate_outlined,
+                    color: InvestAITheme.verde, size: 18),
+                const SizedBox(width: 8),
+                Text('E se eu guardasse?',
+                    style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: InvestAITheme.texto)),
+              ],
+            ),
+            const SizedBox(height: 4),
+          ],
           Text('Veja quanto renderia em cada aplicação, com as taxas de hoje.',
               style:
                   GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza)),
@@ -537,7 +745,10 @@ class _InvestimentoCard extends StatelessWidget {
                 Text(investimento.nome,
                     style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: InvestAITheme.texto)),
                 const SizedBox(height: 2),
-                Text('${investimento.tipo} · liquidez ${investimento.liquidez}',
+                Text(
+                    investimento.calculadoAutomaticamente
+                        ? '${investimento.tipo} · ${investimento.taxaAnual?.toStringAsFixed(2)}% a.a.'
+                        : '${investimento.tipo} · liquidez ${investimento.liquidez}',
                     style: GoogleFonts.inter(fontSize: 11, color: InvestAITheme.cinza)),
               ],
             ),
@@ -545,10 +756,22 @@ class _InvestimentoCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(reais(investimento.valorAplicado),
+              Text(reais(investimento.valorAtual),
                   style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
-              Text('+ ${reais(investimento.rendimentoAtual)}',
-                  style: GoogleFonts.inter(fontSize: 11, color: InvestAITheme.verde)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Deixa claro quando o número se atualiza sozinho, para
+                  // o usuário não achar que precisa editar na mão.
+                  if (investimento.calculadoAutomaticamente) ...[
+                    const Icon(Icons.autorenew_rounded,
+                        size: 11, color: InvestAITheme.verde),
+                    const SizedBox(width: 3),
+                  ],
+                  Text('+ ${reais(investimento.rendimentoAtual)}',
+                      style: GoogleFonts.inter(fontSize: 11, color: InvestAITheme.verde)),
+                ],
+              ),
             ],
           ),
           IconButton(
@@ -565,7 +788,8 @@ class _InvestimentoCard extends StatelessWidget {
 /// com classificação qualitativa (Ruim/Regular/Bom/Excelente).
 class _ScoreCard extends StatelessWidget {
   final Map<String, dynamic> score;
-  const _ScoreCard({required this.score});
+  final bool semMoldura;
+  const _ScoreCard({required this.score, this.semMoldura = false});
 
   Color get _cor {
     final valor = (score['score'] ?? 0) as int;
@@ -583,18 +807,24 @@ class _ScoreCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: InvestAITheme.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: InvestAITheme.borda),
-      ),
+      // Sem moldura quando está dentro de uma seção recolhível, que já
+      // desenha o card - senão fica card dentro de card.
+      padding: EdgeInsets.all(semMoldura ? 0 : 18),
+      decoration: semMoldura
+          ? null
+          : BoxDecoration(
+              color: InvestAITheme.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: InvestAITheme.borda),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Score financeiro',
-              style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza)),
-          const SizedBox(height: 8),
+          if (!semMoldura) ...[
+            Text('Score financeiro',
+                style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza)),
+            const SizedBox(height: 8),
+          ],
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -629,34 +859,39 @@ class _ScoreCard extends StatelessWidget {
 /// investimento (RF16), já que o app não executa investimentos de verdade.
 class _MercadoAgora extends StatelessWidget {
   final Map<String, dynamic>? taxas;
-  const _MercadoAgora({required this.taxas});
+  final bool semMoldura;
+  const _MercadoAgora({required this.taxas, this.semMoldura = false});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: InvestAITheme.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: InvestAITheme.borda),
-      ),
+      padding: EdgeInsets.all(semMoldura ? 0 : 18),
+      decoration: semMoldura
+          ? null
+          : BoxDecoration(
+              color: InvestAITheme.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: InvestAITheme.borda),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.public_rounded, color: InvestAITheme.verde, size: 16),
-              const SizedBox(width: 6),
-              Text('Mercado agora',
-                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
-              const Spacer(),
-              if (taxas != null)
-                Text('Banco Central · ${taxas!['atualizado_em']}',
-                    style: GoogleFonts.inter(fontSize: 10, color: InvestAITheme.cinza)),
-            ],
-          ),
-          const SizedBox(height: 14),
+          if (!semMoldura) ...[
+            Row(
+              children: [
+                const Icon(Icons.public_rounded, color: InvestAITheme.verde, size: 16),
+                const SizedBox(width: 6),
+                Text('Mercado agora',
+                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
+                const Spacer(),
+                if (taxas != null)
+                  Text('Banco Central · ${taxas!['atualizado_em']}',
+                      style: GoogleFonts.inter(fontSize: 10, color: InvestAITheme.cinza)),
+              ],
+            ),
+            const SizedBox(height: 14),
+          ],
           if (taxas == null)
             Text('Taxas indisponíveis no momento.',
                 style: GoogleFonts.inter(fontSize: 12.5, color: InvestAITheme.cinza))
@@ -748,42 +983,172 @@ class _SecaoSugestoes extends StatelessWidget {
             ),
           )
         else
-          for (final s in sugestoes)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: InvestAITheme.verde.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: InvestAITheme.verde.withOpacity(0.2)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(s['nome'] ?? '',
-                            style: GoogleFonts.inter(
-                                fontSize: 13.5, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: InvestAITheme.verde.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(s['tipo'] ?? '',
-                            style: GoogleFonts.inter(fontSize: 10, color: InvestAITheme.verde, fontWeight: FontWeight.w600)),
-                      ),
-                    ],
+          _SugestoesPerfil(
+              sugestoes: sugestoes.cast<Map<String, dynamic>>()),
+      ],
+    );
+  }
+}
+
+/// Mostra uma sugestão em destaque com o motivo em linguagem comum, e
+/// guarda as demais atrás de um link. Uma lista com três produtos de renda
+/// fixa não ajuda quem nunca investiu a decidir - só informa.
+class _SugestoesPerfil extends StatefulWidget {
+  final List<Map<String, dynamic>> sugestoes;
+  const _SugestoesPerfil({required this.sugestoes});
+
+  @override
+  State<_SugestoesPerfil> createState() => _SugestoesPerfilState();
+}
+
+class _SugestoesPerfilState extends State<_SugestoesPerfil> {
+  bool _mostrarOutras = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.sugestoes.isEmpty) return const SizedBox.shrink();
+
+    final principal = widget.sugestoes.first;
+    final outras = widget.sugestoes.skip(1).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: InvestAITheme.verde.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border:
+                Border.all(color: InvestAITheme.verde.withValues(alpha: 0.4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Para começar, considere',
+                  style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: InvestAITheme.verde)),
+              const SizedBox(height: 6),
+              Text(principal['nome'] ?? '',
+                  style: GoogleFonts.inter(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: InvestAITheme.texto)),
+              const SizedBox(height: 8),
+              TextoComGlossario(
+                  principal['motivo'] ?? principal['descricao'] ?? '',
+                  estilo: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      color: InvestAITheme.texto,
+                      height: 1.5)),
+              if (principal['motivo'] != null &&
+                  (principal['descricao'] ?? '').toString().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                TextoComGlossario(principal['descricao'],
+                    estilo: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        color: InvestAITheme.cinza,
+                        height: 1.4)),
+              ],
+              const SizedBox(height: 12),
+              // Atalho para a IA, que já conhece a situação financeira da
+              // pessoa e pode explicar com os números dela.
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => ChatIaScreen(
+                    perguntaInicial:
+                        'Me explica o que é ${principal['nome']} como se eu '
+                        'nunca tivesse investido, e por que isso faz sentido '
+                        'pra minha situação.',
                   ),
-                  const SizedBox(height: 6),
-                  Text(s['descricao'] ?? '',
-                      style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza, height: 1.4)),
-                ],
+                )),
+                icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                label: const Text('Me explica isso'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: InvestAITheme.verde,
+                  side: BorderSide(
+                      color: InvestAITheme.verde.withValues(alpha: 0.5)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: GoogleFonts.inter(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
               ),
+            ],
+          ),
+        ),
+
+        if (outras.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: () => setState(() => _mostrarOutras = !_mostrarOutras),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
+            child: Text(
+              _mostrarOutras
+                  ? 'Esconder outras opções'
+                  : 'Ver outras ${outras.length} opções do seu perfil',
+              style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: InvestAITheme.verde),
+            ),
+          ),
+          if (_mostrarOutras)
+            for (final s in outras)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: InvestAITheme.card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: InvestAITheme.borda),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(s['nome'] ?? '',
+                              style: GoogleFonts.inter(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: InvestAITheme.texto)),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: InvestAITheme.verde.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(s['tipo'] ?? '',
+                              style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  color: InvestAITheme.verde,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(s['descricao'] ?? '',
+                        style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: InvestAITheme.cinza,
+                            height: 1.4)),
+                  ],
+                ),
+              ),
+        ],
       ],
     );
   }
@@ -796,26 +1161,30 @@ class _SecaoSugestoes extends StatelessWidget {
 class _TitulosTesouro extends StatelessWidget {
   final Map<String, dynamic>? tesouro;
   final String Function(num) reais;
-  const _TitulosTesouro({required this.tesouro, required this.reais});
+  final bool semMoldura;
+  const _TitulosTesouro(
+      {required this.tesouro, required this.reais, this.semMoldura = false});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text('Tesouro Direto agora',
-                  style: GoogleFonts.inter(
-                      fontSize: 15, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
-            ),
-            if (tesouro != null)
-              Text('atualizado ${tesouro!['atualizado_em']}',
-                  style: GoogleFonts.inter(fontSize: 10, color: InvestAITheme.cinza)),
-          ],
-        ),
-        const SizedBox(height: 4),
+        if (!semMoldura) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text('Tesouro Direto agora',
+                    style: GoogleFonts.inter(
+                        fontSize: 15, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
+              ),
+              if (tesouro != null)
+                Text('atualizado ${tesouro!['atualizado_em']}',
+                    style: GoogleFonts.inter(fontSize: 10, color: InvestAITheme.cinza)),
+            ],
+          ),
+          const SizedBox(height: 4),
+        ],
         Text('Títulos públicos reais sendo vendidos neste momento (Tesouro Transparente).',
             style: GoogleFonts.inter(fontSize: 11.5, color: InvestAITheme.cinza)),
         const SizedBox(height: 12),
@@ -932,6 +1301,8 @@ class _FormularioInvestimentoState extends State<_FormularioInvestimento> {
   final _valorAplicadoCtrl = TextEditingController();
   final _rendimentoCtrl = TextEditingController(text: '0');
   String _liquidez = 'diaria';
+  String? _indexador = 'selic';
+  DateTime _dataAplicacao = DateTime.now();
   bool _salvando = false;
   String? _erro;
 
@@ -958,6 +1329,9 @@ class _FormularioInvestimentoState extends State<_FormularioInvestimento> {
         valorAplicado: double.parse(_valorAplicadoCtrl.text.replaceAll(',', '.')),
         rendimentoAtual: double.tryParse(_rendimentoCtrl.text.replaceAll(',', '.')) ?? 0,
         liquidez: _liquidez,
+        indexador: _indexador,
+        dataAplicacao:
+            '${_dataAplicacao.year}-${_dataAplicacao.month.toString().padLeft(2, '0')}-${_dataAplicacao.day.toString().padLeft(2, '0')}',
       ));
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -1027,12 +1401,65 @@ class _FormularioInvestimentoState extends State<_FormularioInvestimento> {
                 },
               ),
               const SizedBox(height: 14),
-              TextFormField(
-                controller: _rendimentoCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              // Escolhendo o índice, o app calcula o rendimento sozinho a
+              // partir das taxas do dia - o campo manual some.
+              DropdownButtonFormField<String?>(
+                initialValue: _indexador,
+                dropdownColor: InvestAITheme.card,
+                isExpanded: true,
                 style: const TextStyle(color: InvestAITheme.texto),
-                decoration: const InputDecoration(labelText: 'Rendimento atual', prefixText: 'R\$ '),
+                decoration: const InputDecoration(
+                  labelText: 'Acompanha qual índice?',
+                  helperText: 'O rendimento se atualiza sozinho',
+                ),
+                items: [
+                  for (final e in Indexadores.rotulos.entries)
+                    DropdownMenuItem(
+                        value: e.key,
+                        child: Text(e.value,
+                            style: const TextStyle(fontSize: 13),
+                            overflow: TextOverflow.ellipsis)),
+                  const DropdownMenuItem(
+                      value: null,
+                      child: Text('Informar o rendimento na mão',
+                          style: TextStyle(fontSize: 13))),
+                ],
+                onChanged: (v) => setState(() => _indexador = v),
               ),
+              const SizedBox(height: 14),
+              if (_indexador == null)
+                TextFormField(
+                  controller: _rendimentoCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(color: InvestAITheme.texto),
+                  decoration: const InputDecoration(labelText: 'Rendimento atual', prefixText: 'R\$ '),
+                )
+              else
+                InkWell(
+                  onTap: () async {
+                    final escolhida = await showDatePicker(
+                      context: context,
+                      initialDate: _dataAplicacao,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                    );
+                    if (escolhida != null) {
+                      setState(() => _dataAplicacao = escolhida);
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Aplicado em',
+                      helperText: 'Usado para calcular quanto já rendeu',
+                    ),
+                    child: Text(
+                      '${_dataAplicacao.day.toString().padLeft(2, '0')}/'
+                      '${_dataAplicacao.month.toString().padLeft(2, '0')}/'
+                      '${_dataAplicacao.year}',
+                      style: const TextStyle(color: InvestAITheme.texto),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 initialValue: _liquidez,
