@@ -7,6 +7,7 @@ from services.investimento.atualizar_investimento_service import AtualizarInvest
 from services.investimento.deletar_investimento_service import DeletarInvestimentoService
 from services.investimento.listar_ranking_investimentos_service import ListarRankingInvestimentosService
 from services.investimento.simular_aporte_service import SimularAporteService
+from services.investimento.comparar_carteira_service import CompararCarteiraService
 from .auth_decorators import token_obrigatorio
 
 investimento_bp = Blueprint(
@@ -51,6 +52,15 @@ class InvestimentoController:
         return jsonify(resultado)
 
     @token_obrigatorio
+    def comparar(self):
+        """Quanto o usuário deixa de ganhar por ano mantendo cada
+        investimento onde está, frente à melhor alternativa equivalente."""
+        try:
+            return jsonify(CompararCarteiraService().executar(g.usuario_id))
+        except Exception:
+            return jsonify({"erro": "Não foi possível comparar agora."}), 503
+
+    @token_obrigatorio
     def criar(self):
         dados = dict(request.get_json() or request.form)
         dados["usuario_id"] = g.usuario_id
@@ -91,6 +101,7 @@ investimento_bp.add_url_rule("", view_func=controller.listar, methods=["GET"])
 investimento_bp.add_url_rule("", view_func=controller.criar, methods=["POST"])
 investimento_bp.add_url_rule("/ranking", view_func=controller.ranking, methods=["GET"])
 investimento_bp.add_url_rule("/simular", view_func=controller.simular, methods=["POST"])
+investimento_bp.add_url_rule("/comparar", view_func=controller.comparar, methods=["GET"])
 investimento_bp.add_url_rule("/<int:id>", view_func=controller.buscar, methods=["GET"])
 investimento_bp.add_url_rule("/<int:id>", view_func=controller.atualizar, methods=["PUT"])
 investimento_bp.add_url_rule("/<int:id>", view_func=controller.deletar, methods=["DELETE"])

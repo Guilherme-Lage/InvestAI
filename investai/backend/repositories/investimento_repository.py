@@ -11,7 +11,8 @@ class InvestimentoRepository:
     @staticmethod
     def listar_por_usuario(usuario_id):
         sql = text("""
-            SELECT id, nome, tipo, valor_aplicado, rendimento_atual, liquidez, usuario_id
+            SELECT id, nome, tipo, valor_aplicado, rendimento_atual, liquidez,
+                   indexador, percentual_indexador, data_aplicacao, usuario_id
             FROM investimento
             WHERE usuario_id = :usuario_id
         """)
