@@ -159,6 +159,7 @@ class ApiService {
     required double rendaMensal,
     required double despesaMensalEstimada,
     required double despesaFixaEstimada,
+    required bool consentimentoAceito,
   }) async {
     try {
       final body = jsonEncode({
@@ -169,6 +170,7 @@ class ApiService {
         'renda_mensal': rendaMensal,
         'despesa_mensal_estimada': despesaMensalEstimada,
         'despesa_fixa_estimada': despesaFixaEstimada,
+        'consentimento_aceito': consentimentoAceito,
       });
 
       final response = await http.post(
@@ -434,6 +436,27 @@ class ApiService {
 
   static Future<Map<String, dynamic>> taxasMercado() async {
     return await _get('/api/mercado/taxas') as Map<String, dynamic>;
+  }
+
+  /// Termos de uso dos dados. Sem autenticação: precisam poder ser lidos
+  /// antes de criar a conta.
+  static Future<Map<String, dynamic>> termosConsentimento() async {
+    final resposta = await http
+        .get(Uri.parse('$baseUrl/api/usuarios/termos'))
+        .timeout(const Duration(seconds: 10));
+    return jsonDecode(resposta.body) as Map<String, dynamic>;
+  }
+
+  /// Texto integral do termo (LGPD), em Markdown.
+  static Future<String> termoCompleto() async {
+    final resposta = await http
+        .get(Uri.parse('$baseUrl/api/usuarios/termos/completo'))
+        .timeout(const Duration(seconds: 15));
+    final corpo = jsonDecode(resposta.body) as Map<String, dynamic>;
+    if (resposta.statusCode != 200) {
+      throw ApiException(corpo['erro'] ?? 'Termo indisponível.');
+    }
+    return corpo['texto'] as String;
   }
 
   /// Quanto o usuário deixa de ganhar por ano mantendo cada investimento
