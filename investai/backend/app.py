@@ -45,7 +45,10 @@ def _aquecer_cache_mercado():
     threading.Thread(target=loop, daemon=True).start()
 
 
-def criar_app():
+def criar_app(config=None):
+    """`config` sobrescreve a configuração padrão - usado pelos testes, que
+    rodam com banco em memória e sem aquecer o cache de mercado (para não
+    depender de internet nem da API do Banco Central)."""
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///investai.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -54,6 +57,8 @@ def criar_app():
     app.config["SECRET_KEY"] = os.environ.get(
         "SECRET_KEY", "chave-de-desenvolvimento-troque-em-producao"
     )
+    if config:
+        app.config.update(config)
 
     db.init_app(app)
     CORS(app)
@@ -73,7 +78,9 @@ def criar_app():
     # Evita rodar em duplicidade: o reloader do Flask (debug=True) sobe um
     # processo "monitor" e um processo "worker" - só o worker de fato serve
     # requisições, então só ele precisa aquecer o cache.
-    if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    if app.config.get("AQUECER_CACHE_MERCADO", True) and (
+        not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    ):
         _aquecer_cache_mercado()
 
     @app.route("/")

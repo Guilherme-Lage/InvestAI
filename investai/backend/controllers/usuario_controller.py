@@ -11,6 +11,7 @@ from services.usuario.deletar_usuario_service import DeletarUsuarioService
 from services.usuario.buscar_usuarios_com_estatisticas_service import BuscarUsuariosComEstatisticasService
 from services.usuario.listar_usuarios_por_perfil_service import ListarUsuariosPorPerfilService
 from services.usuario.gerar_relatorio_financeiro_usuario_service import GerarRelatorioFinanceiroUsuarioService
+from services.usuario.termos_consentimento import termos_atuais, termo_completo
 from .auth_decorators import token_obrigatorio
 
 usuario_bp = Blueprint("usuario", __name__, url_prefix="/api/usuarios")
@@ -24,6 +25,18 @@ class UsuarioController:
     """Controller do recurso Usuario: recebe a requisição HTTP, chama a
     Service correspondente e devolve a resposta. Nenhuma regra de negócio
     é implementada aqui."""
+
+    def termos(self):
+        """Sem autenticação de propósito: a pessoa precisa poder ler os
+        termos antes de criar a conta."""
+        return jsonify(termos_atuais())
+
+    def termo_integral(self):
+        """Texto completo do termo (LGPD), em Markdown."""
+        texto = termo_completo()
+        if texto is None:
+            return jsonify({"erro": "Termo completo indisponível."}), 404
+        return jsonify({"versao": termos_atuais()["versao"], "texto": texto})
 
     @token_obrigatorio
     def listar(self):
@@ -129,6 +142,8 @@ class UsuarioController:
 
 controller = UsuarioController()
 
+usuario_bp.add_url_rule("/termos", view_func=controller.termos, methods=["GET"])
+usuario_bp.add_url_rule("/termos/completo", view_func=controller.termo_integral, methods=["GET"])
 usuario_bp.add_url_rule("", view_func=controller.listar, methods=["GET"])
 usuario_bp.add_url_rule("", view_func=controller.criar, methods=["POST"])
 usuario_bp.add_url_rule("/login", view_func=controller.login, methods=["POST"])
