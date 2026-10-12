@@ -1,21 +1,16 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../utils/formato_moeda.dart';
 import 'onboarding_screen.dart';
+import 'termo_completo_screen.dart';
 
-/// Converte texto digitado em número aceitando os dois formatos que o
-/// usuário pode usar: "1.234,56" (padrão brasileiro) e "1234.56".
-double? _paraNumero(String texto) {
-  final limpo = texto.trim();
-  if (limpo.isEmpty) return null;
-  // Com vírgula, ela é o separador decimal e os pontos são de milhar.
-  final normalizado = limpo.contains(',')
-      ? limpo.replaceAll('.', '').replaceAll(',', '.')
-      : limpo;
-  return double.tryParse(normalizado);
-}
+/// Os campos usam [FormatadorMilhar], então o texto sempre chega no
+/// formato brasileiro: ponto separa milhar, vírgula separa centavos.
+double? _paraNumero(String texto) => valorDigitado(texto);
 
 /// Fração da renda usada quando o usuário não sabe estimar os gastos.
 /// Erra para cima de propósito: subestimar a despesa faria a meta da
@@ -42,6 +37,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
 
   String _perfilRisco = 'moderado';
   bool _carregando = false;
+  bool _termosAceitos = false;
   String? _erro;
 
   /// Valor vindo do botão "Não sei estimar agora". Fica fora dos campos de
@@ -151,6 +147,12 @@ class _CadastroScreenState extends State<CadastroScreen> {
   }
 
   Future<void> _cadastrar() async {
+    if (!_termosAceitos) {
+      setState(() => _erro = 'Para criar a conta, aceite os termos de uso '
+          'dos seus dados.');
+      return;
+    }
+
     setState(() {
       _erro = null;
       _carregando = true;
@@ -164,6 +166,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
       rendaMensal: _renda,
       despesaMensalEstimada: _totalDespesas,
       despesaFixaEstimada: _despesaFixa,
+      consentimentoAceito: _termosAceitos,
     );
 
     if (!mounted) return;
@@ -298,6 +301,9 @@ class _CadastroScreenState extends State<CadastroScreen> {
                       perfilSelecionado: _perfilRisco,
                       erro: _erro,
                       carregando: _carregando,
+                      termosAceitos: _termosAceitos,
+                      onTermosChange: (v) =>
+                          setState(() => _termosAceitos = v),
                       onPerfilChange: (v) => setState(() => _perfilRisco = v),
                       onCadastrar: _cadastrar,
                     ),
@@ -600,7 +606,7 @@ class _EtapaFinanceiraState extends State<_EtapaFinanceira> {
             controller: widget.rendaCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[\d,.]')),
+              const FormatadorMilhar(),
             ],
             style: const TextStyle(color: InvestAITheme.texto),
             decoration: const InputDecoration(
@@ -652,7 +658,7 @@ class _EtapaFinanceiraState extends State<_EtapaFinanceira> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[\d,.]')),
+                const FormatadorMilhar(),
               ],
               style: const TextStyle(color: InvestAITheme.texto),
               decoration: InputDecoration(
@@ -798,6 +804,8 @@ class _EtapaPerfil extends StatelessWidget {
   final String perfilSelecionado;
   final String? erro;
   final bool carregando;
+  final bool termosAceitos;
+  final ValueChanged<bool> onTermosChange;
   final ValueChanged<String> onPerfilChange;
   final VoidCallback onCadastrar;
 
@@ -806,6 +814,8 @@ class _EtapaPerfil extends StatelessWidget {
     required this.perfilSelecionado,
     required this.erro,
     required this.carregando,
+    required this.termosAceitos,
+    required this.onTermosChange,
     required this.onPerfilChange,
     required this.onCadastrar,
   });
@@ -860,12 +870,67 @@ class _EtapaPerfil extends StatelessWidget {
                 onTap: () => onPerfilChange(perfil.valor),
               )),
 
+          const SizedBox(height: 20),
+
+          // Consentimento sobre o uso dos dados: o app coleta renda e
+          // gastos e envia um resumo disso a uma IA externa, então a
+          // decisão precisa ser explícita e ficar registrada.
+          InkWell(
+            onTap: () => onTermosChange(!termosAceitos),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Checkbox(
+                    value: termosAceitos,
+                    onChanged: (v) => onTermosChange(v ?? false),
+                    activeColor: InvestAITheme.verde,
+                    checkColor: InvestAITheme.verdeEscuro,
+                    side: const BorderSide(color: InvestAITheme.cinza),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: RichText(
+                        text: TextSpan(
+                          style: GoogleFonts.inter(
+                              fontSize: 12.5,
+                              color: InvestAITheme.cinza,
+                              height: 1.45),
+                          children: [
+                            const TextSpan(text: 'Li e aceito os '),
+                            TextSpan(
+                              text: 'termos de uso dos meus dados',
+                              style: GoogleFonts.inter(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: InvestAITheme.verde,
+                                decoration: TextDecoration.underline,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () => _abrirTermos(context),
+                            ),
+                            const TextSpan(text: '.'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           if (erro != null) ...[
             const SizedBox(height: 16),
             _ErroCard(mensagem: erro!),
           ],
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
 
           ElevatedButton(
             onPressed: carregando ? null : onCadastrar,
@@ -889,6 +954,133 @@ class _EtapaPerfil extends StatelessWidget {
 }
 
 // ── Card de perfil de risco ──────────────────────────────────────────────────
+
+/// Mostra os termos vindos do backend. Buscar do servidor (e não embutir
+/// o texto no app) é o que permite saber qual versão cada pessoa aceitou.
+void _abrirTermos(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => const _FolhaTermos(),
+  );
+}
+
+class _FolhaTermos extends StatelessWidget {
+  const _FolhaTermos();
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, rolagem) => Container(
+        decoration: const BoxDecoration(
+          color: InvestAITheme.fundo,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(
+            top: BorderSide(color: InvestAITheme.borda),
+            left: BorderSide(color: InvestAITheme.borda),
+            right: BorderSide(color: InvestAITheme.borda),
+          ),
+        ),
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: ApiService.termosConsentimento(),
+          builder: (context, snap) {
+            if (snap.connectionState != ConnectionState.done) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: CircularProgressIndicator(color: InvestAITheme.verde),
+                ),
+              );
+            }
+            if (snap.hasError || snap.data == null) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: Text(
+                    'Não consegui carregar os termos agora. Verifique a '
+                    'conexão e tente de novo.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                        fontSize: 13, color: InvestAITheme.cinza),
+                  ),
+                ),
+              );
+            }
+
+            final termos = snap.data!;
+            final itens =
+                (termos['itens'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+            return ListView(
+              controller: rolagem,
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 32),
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: InvestAITheme.borda,
+                        borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(termos['titulo'] ?? 'Termos',
+                    style: GoogleFonts.inter(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: InvestAITheme.texto)),
+                const SizedBox(height: 8),
+                Text(termos['resumo'] ?? '',
+                    style: GoogleFonts.inter(
+                        fontSize: 13.5,
+                        color: InvestAITheme.cinza,
+                        height: 1.5)),
+                const SizedBox(height: 20),
+                for (final item in itens) ...[
+                  Text(item['titulo'] ?? '',
+                      style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: InvestAITheme.verde)),
+                  const SizedBox(height: 5),
+                  Text(item['texto'] ?? '',
+                      style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: InvestAITheme.texto,
+                          height: 1.55)),
+                  const SizedBox(height: 18),
+                ],
+                const SizedBox(height: 4),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const TermoCompletoScreen()),
+                  ),
+                  icon: const Icon(Icons.description_outlined, size: 16),
+                  label: const Text('Ler o termo completo (LGPD)'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: InvestAITheme.verde,
+                    side: const BorderSide(color: InvestAITheme.verde),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text('Versão ${termos['versao'] ?? '-'}',
+                    style: GoogleFonts.inter(
+                        fontSize: 11, color: InvestAITheme.cinza)),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
 
 class _PerfilCard extends StatelessWidget {
   final _PerfilOpcao perfil;
