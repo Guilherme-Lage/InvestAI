@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/investimento.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../utils/formato_moeda.dart';
 import '../widgets/glossario.dart';
 import 'chat_ia_screen.dart';
 
@@ -411,13 +412,7 @@ class _SimuladorState extends State<_Simulador> {
     super.dispose();
   }
 
-  double _valor(TextEditingController c) {
-    final t = c.text.trim();
-    if (t.isEmpty) return 0;
-    final normalizado =
-        t.contains(',') ? t.replaceAll('.', '').replaceAll(',', '.') : t;
-    return double.tryParse(normalizado) ?? 0;
-  }
+  double _valor(TextEditingController c) => valorDigitado(c.text) ?? 0;
 
   Future<void> _simular() async {
     final inicial = _valor(_inicialCtrl);
@@ -495,6 +490,7 @@ class _SimuladorState extends State<_Simulador> {
                   controller: _inicialCtrl,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [FormatadorMilhar()],
                   style: const TextStyle(color: InvestAITheme.texto),
                   decoration: const InputDecoration(
                     labelText: 'Tenho hoje',
@@ -509,6 +505,7 @@ class _SimuladorState extends State<_Simulador> {
                   controller: _aporteCtrl,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [FormatadorMilhar()],
                   style: const TextStyle(color: InvestAITheme.texto),
                   decoration: const InputDecoration(
                     labelText: 'Por mês',
@@ -1326,8 +1323,8 @@ class _FormularioInvestimentoState extends State<_FormularioInvestimento> {
       await ApiService.criarInvestimento(Investimento(
         nome: _nomeCtrl.text.trim(),
         tipo: _tipoCtrl.text.trim(),
-        valorAplicado: double.parse(_valorAplicadoCtrl.text.replaceAll(',', '.')),
-        rendimentoAtual: double.tryParse(_rendimentoCtrl.text.replaceAll(',', '.')) ?? 0,
+        valorAplicado: valorDigitado(_valorAplicadoCtrl.text) ?? 0,
+        rendimentoAtual: valorDigitado(_rendimentoCtrl.text) ?? 0,
         liquidez: _liquidez,
         indexador: _indexador,
         dataAplicacao:
@@ -1392,10 +1389,11 @@ class _FormularioInvestimentoState extends State<_FormularioInvestimento> {
               TextFormField(
                 controller: _valorAplicadoCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: const [FormatadorMilhar()],
                 style: const TextStyle(color: InvestAITheme.texto),
                 decoration: const InputDecoration(labelText: 'Valor aplicado', prefixText: 'R\$ '),
                 validator: (v) {
-                  final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
+                  final valor = valorDigitado(v ?? '');
                   if (valor == null || valor <= 0) return 'Informe um valor válido';
                   return null;
                 },
@@ -1431,6 +1429,7 @@ class _FormularioInvestimentoState extends State<_FormularioInvestimento> {
                 TextFormField(
                   controller: _rendimentoCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [FormatadorMilhar()],
                   style: const TextStyle(color: InvestAITheme.texto),
                   decoration: const InputDecoration(labelText: 'Rendimento atual', prefixText: 'R\$ '),
                 )

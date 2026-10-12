@@ -1,8 +1,10 @@
 import re
+from datetime import datetime
 
 from models import Usuario
 from repositories import UsuarioRepository
 from services.auth_service import AuthService
+from services.usuario.termos_consentimento import VERSAO_ATUAL
 
 REGEX_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 TAMANHO_MINIMO_SENHA = 6
@@ -53,6 +55,12 @@ class CriarUsuarioService:
         if perfil_risco not in ("conservador", "moderado", "arrojado"):
             raise ValueError("Perfil de risco inválido.")
 
+        # Sem aceite não há conta: o app coleta dados financeiros e envia um
+        # resumo deles a um serviço de IA externo, então a pessoa precisa
+        # saber disso antes de começar.
+        if dados.get("consentimento_aceito") is not True:
+            raise ValueError("É preciso aceitar os termos de uso dos dados.")
+
         usuario = Usuario(
             nome=nome,
             email=email,
@@ -60,6 +68,9 @@ class CriarUsuarioService:
             renda_mensal=renda_mensal,
             despesa_mensal_estimada=despesa_estimada,
             despesa_fixa_estimada=despesa_fixa,
+            consentimento_aceito=True,
+            consentimento_versao=VERSAO_ATUAL,
+            consentimento_em=datetime.now(),
         )
         usuario.definir_senha(senha)
         usuario.salvar()

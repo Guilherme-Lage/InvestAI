@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS usuario (
     renda_mensal      DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     despesa_mensal_estimada DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     despesa_fixa_estimada   DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    consentimento_aceito    BOOLEAN      NOT NULL DEFAULT FALSE,
+    consentimento_versao    VARCHAR(10),
+    consentimento_em        DATETIME,
     data_criacao      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
                                     ON UPDATE CURRENT_TIMESTAMP

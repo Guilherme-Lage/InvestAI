@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/movimentacao.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../utils/formato_moeda.dart';
 
 /// Relatório: RF10 (resumo mensal), RF11 (gráfico por categoria), RF12/RF13
 /// (alertas de inatividade e de limite) e RF19 (histórico com filtro).
@@ -666,7 +667,7 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
       id: widget.existente?.id,
       descricao: _descricaoCtrl.text.trim(),
       tipo: _tipo,
-      valor: double.parse(_valorCtrl.text.replaceAll(',', '.')),
+      valor: valorDigitado(_valorCtrl.text) ?? 0,
       data:
           '${_data.year.toString().padLeft(4, '0')}-${_data.month.toString().padLeft(2, '0')}-${_data.day.toString().padLeft(2, '0')}',
       categoria: _categoria,
@@ -765,10 +766,11 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
               TextFormField(
                 controller: _valorCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: const [FormatadorMilhar()],
                 style: const TextStyle(color: InvestAITheme.texto),
                 decoration: const InputDecoration(labelText: 'Valor', prefixText: 'R\$ '),
                 validator: (v) {
-                  final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
+                  final valor = valorDigitado(v ?? '');
                   if (valor == null || valor <= 0) return 'Informe um valor válido';
                   return null;
                 },

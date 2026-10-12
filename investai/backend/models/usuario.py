@@ -19,6 +19,13 @@ class Usuario(ModeloBase):
     despesa_mensal_estimada = db.Column(db.Float, nullable=False, default=0.0)
     despesa_fixa_estimada = db.Column(db.Float, nullable=False, default=0.0)
 
+    # Consentimento sobre o uso dos dados financeiros. Guardamos a decisão
+    # e a versão aceita: se o texto mudar, dá para saber quem concordou com
+    # qual. A data registra quando a pessoa decidiu.
+    consentimento_aceito = db.Column(db.Boolean, nullable=False, default=False)
+    consentimento_versao = db.Column(db.String(10))
+    consentimento_em = db.Column(db.DateTime)
+
     movimentacoes = db.relationship(
         "Movimentacao", back_populates="usuario", cascade="all, delete-orphan"
     )
@@ -71,6 +78,11 @@ class Usuario(ModeloBase):
             "renda_mensal": self.renda_mensal,
             "despesa_mensal_estimada": self.despesa_mensal_estimada,
             "despesa_fixa_estimada": self.despesa_fixa_estimada,
+            "consentimento_aceito": self.consentimento_aceito,
+            "consentimento_versao": self.consentimento_versao,
+            "consentimento_em": (
+                self.consentimento_em.isoformat() if self.consentimento_em else None
+            ),
         }
 
     def __repr__(self):

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/meta.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../utils/formato_moeda.dart';
 import '../widgets/glossario.dart';
 import 'chat_ia_screen.dart';
 
@@ -93,6 +94,7 @@ class _MetasTabState extends State<MetasTab> {
         content: TextField(
           controller: controlador,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: const [FormatadorMilhar()],
           autofocus: true,
           style: const TextStyle(color: InvestAITheme.texto),
           decoration: const InputDecoration(labelText: 'Valor', prefixText: 'R\$ '),
@@ -101,7 +103,7 @@ class _MetasTabState extends State<MetasTab> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () {
-              final v = double.tryParse(controlador.text.replaceAll(',', '.'));
+              final v = valorDigitado(controlador.text);
               Navigator.pop(context, v);
             },
             child: const Text('Adicionar'),
@@ -514,8 +516,8 @@ class _FormularioMetaState extends State<_FormularioMeta> {
     final meta = Meta(
       id: widget.existente?.id,
       titulo: _tituloCtrl.text.trim(),
-      valorAlvo: double.parse(_valorAlvoCtrl.text.replaceAll(',', '.')),
-      valorAtual: double.tryParse(_valorAtualCtrl.text.replaceAll(',', '.')) ?? 0,
+      valorAlvo: valorDigitado(_valorAlvoCtrl.text) ?? 0,
+      valorAtual: valorDigitado(_valorAtualCtrl.text) ?? 0,
       prazo: '${_prazo.year}-${_prazo.month.toString().padLeft(2, '0')}-${_prazo.day.toString().padLeft(2, '0')}',
       tipo: widget.existente?.tipo ?? 'geral',
     );
@@ -578,10 +580,11 @@ class _FormularioMetaState extends State<_FormularioMeta> {
               TextFormField(
                 controller: _valorAlvoCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: const [FormatadorMilhar()],
                 style: const TextStyle(color: InvestAITheme.texto),
                 decoration: const InputDecoration(labelText: 'Valor-alvo', prefixText: 'R\$ '),
                 validator: (v) {
-                  final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
+                  final valor = valorDigitado(v ?? '');
                   if (valor == null || valor <= 0) return 'Informe um valor válido';
                   return null;
                 },
@@ -590,6 +593,7 @@ class _FormularioMetaState extends State<_FormularioMeta> {
               TextFormField(
                 controller: _valorAtualCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: const [FormatadorMilhar()],
                 style: const TextStyle(color: InvestAITheme.texto),
                 decoration: const InputDecoration(labelText: 'Já guardado (opcional)', prefixText: 'R\$ '),
               ),

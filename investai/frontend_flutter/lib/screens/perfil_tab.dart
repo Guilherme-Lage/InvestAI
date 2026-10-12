@@ -5,6 +5,7 @@ import '../models/movimentacao.dart';
 import '../models/limite_categoria.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../utils/formato_moeda.dart';
 import 'login_screen.dart';
 
 /// RF18 - perfil de investidor; RF13 - limites de gasto por categoria;
@@ -129,6 +130,7 @@ class _PerfilTabState extends State<PerfilTab> {
                 TextFormField(
                   controller: rendaCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [FormatadorMilhar()],
                   style: const TextStyle(color: InvestAITheme.texto),
                   decoration: const InputDecoration(labelText: 'Renda mensal', prefixText: 'R\$ '),
                 ),
@@ -147,7 +149,7 @@ class _PerfilTabState extends State<PerfilTab> {
                           });
                           try {
                             final renda =
-                                double.tryParse(rendaCtrl.text.replaceAll(',', '.')) ?? widget.usuario.rendaMensal;
+                                valorDigitado(rendaCtrl.text) ?? widget.usuario.rendaMensal;
                             final usuario = await ApiService.atualizarUsuario(widget.usuario.id!, {
                               'perfil_risco': perfilSelecionado,
                               'renda_mensal': renda,
@@ -395,6 +397,7 @@ class _PainelLimitesState extends State<_PainelLimites> {
                 TextField(
                   controller: valorCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [FormatadorMilhar()],
                   autofocus: true,
                   style: const TextStyle(color: InvestAITheme.texto),
                   decoration: const InputDecoration(labelText: 'Limite mensal', prefixText: 'R\$ '),
@@ -402,7 +405,7 @@ class _PainelLimitesState extends State<_PainelLimites> {
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () async {
-                    final valor = double.tryParse(valorCtrl.text.replaceAll(',', '.'));
+                    final valor = valorDigitado(valorCtrl.text);
                     if (valor == null || valor <= 0) return;
                     try {
                       await ApiService.definirLimite(categoria, valor);
