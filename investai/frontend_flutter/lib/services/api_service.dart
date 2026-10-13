@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +9,7 @@ import '../models/movimentacao.dart';
 import '../models/meta.dart';
 import '../models/investimento.dart';
 import '../models/limite_categoria.dart';
+import '../models/recorrencia.dart';
 import '../screens/chat_ia_screen.dart' show limparConversaIa;
 import '../screens/login_screen.dart';
 
@@ -29,6 +31,9 @@ class ApiService {
   static const String _userIdKey = 'usuario_id';
   static const String _userNomeKey = 'usuario_nome';
   static const String _userEmailKey = 'usuario_email';
+  static const String _userPerfilKey = 'usuario_perfil_risco';
+  static const String _userRendaKey = 'usuario_renda_mensal';
+  static const String _userDespesaKey = 'usuario_despesa_mensal_estimada';
   static const String _tokenKey = 'auth_token';
 
   // ─── Persistência local da sessão ───────────────────────────────────────────
@@ -37,10 +42,22 @@ class ApiService {
 
   static Future<void> salvarSessao(Usuario usuario, String token) async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
+    await _salvarDadosUsuario(usuario);
+  }
+
+  /// Cópia local dos dados do usuário, usada quando o app abre sem
+  /// conexão. Precisa ser regravada sempre que o backend devolver o
+  /// usuário (login, abertura do app, edição do perfil), senão o app
+  /// offline mostraria um perfil de investidor desatualizado.
+  static Future<void> _salvarDadosUsuario(Usuario usuario) async {
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_userIdKey, usuario.id!);
     await prefs.setString(_userNomeKey, usuario.nome);
     await prefs.setString(_userEmailKey, usuario.email);
-    await prefs.setString(_tokenKey, token);
+    await prefs.setString(_userPerfilKey, usuario.perfilRisco);
+    await prefs.setDouble(_userRendaKey, usuario.rendaMensal);
+    await prefs.setDouble(_userDespesaKey, usuario.despesaMensalEstimada);
   }
 
   static Future<Map<String, dynamic>?> carregarSessao() async {
@@ -52,6 +69,12 @@ class ApiService {
       'id': id,
       'nome': prefs.getString(_userNomeKey) ?? '',
       'email': prefs.getString(_userEmailKey) ?? '',
+      // Sessões gravadas por versões antigas do app não têm estes campos.
+      // Sem saber o perfil, vale o mais cauteloso (o mesmo padrão do
+      // backend), nunca um que sugira mais risco do que a pessoa escolheu.
+      'perfil_risco': prefs.getString(_userPerfilKey) ?? 'conservador',
+      'renda_mensal': prefs.getDouble(_userRendaKey) ?? 0.0,
+      'despesa_mensal_estimada': prefs.getDouble(_userDespesaKey) ?? 0.0,
       'token': token,
     };
   }
@@ -61,6 +84,9 @@ class ApiService {
     await prefs.remove(_userIdKey);
     await prefs.remove(_userNomeKey);
     await prefs.remove(_userEmailKey);
+    await prefs.remove(_userPerfilKey);
+    await prefs.remove(_userRendaKey);
+    await prefs.remove(_userDespesaKey);
     await prefs.remove(_tokenKey);
     // A conversa com a IA fala de dinheiro: não pode sobrar para quem
     // entrar depois no mesmo aparelho.
@@ -86,21 +112,17 @@ class ApiService {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        return Usuario.fromJson(jsonDecode(response.body));
+        final usuario = Usuario.fromJson(jsonDecode(response.body));
+        await _salvarDadosUsuario(usuario);
+        return usuario;
       }
       // Token expirado, revogado ou inválido: encerra a sessão local.
       await limparSessao();
       return null;
     } catch (e) {
-      // Sem conexão: mantemos os dados básicos salvos localmente para não
-      // travar o app offline, mas idealmente o ideal é exigir rede aqui.
-      return Usuario(
-        id: sessao['id'],
-        nome: sessao['nome'],
-        email: sessao['email'],
-        perfilRisco: 'moderado',
-        rendaMensal: 0,
-      );
+      // Sem conexão: abre com a última cópia dos dados que o backend
+      // devolveu, para não travar o app offline.
+      return Usuario.fromJson(sessao);
     }
   }
 
@@ -200,7 +222,9 @@ class ApiService {
 
   static Future<Usuario> atualizarUsuario(int id, Map<String, dynamic> dados) async {
     final corpo = await _put('/api/usuarios/$id', dados);
-    return Usuario.fromJson(corpo);
+    final usuario = Usuario.fromJson(corpo);
+    await _salvarDadosUsuario(usuario);
+    return usuario;
   }
 
   // ─── Requisição autenticada genérica ────────────────────────────────────────
@@ -364,6 +388,51 @@ class ApiService {
     return await _get('/api/movimentacoes/alertas') as Map<String, dynamic>;
   }
 
+  /// Relatório mensal (RF10) como arquivo. `formato` é 'pdf' ou 'csv'.
+  /// Devolve os bytes em vez de JSON, por isso não passa pelo `_get`.
+  static Future<Uint8List> exportarRelatorio({
+    required String formato,
+    required int ano,
+    required int mes,
+  }) async {
+    final http.Response response;
+    try {
+      final uri = Uri.parse('$baseUrl/api/movimentacoes/relatorio-mensal/exportar')
+          .replace(queryParameters: {'formato': formato, 'ano': '$ano', 'mes': '$mes'});
+      response = await http.get(uri, headers: await _headers())
+          .timeout(const Duration(seconds: 20));
+    } catch (e) {
+      throw ApiException('Não foi possível conectar ao servidor.');
+    }
+    if (response.statusCode != 200) {
+      await _tratarResposta(response); // sempre lança, com a mensagem do backend
+    }
+    return response.bodyBytes;
+  }
+
+  // ─── Recorrências: receitas e despesas lançadas automaticamente ─────────────
+
+  static Future<List<Recorrencia>> listarRecorrencias() async {
+    final lista = await _get('/api/recorrencias') as List;
+    return lista.map((e) => Recorrencia.fromJson(e)).toList();
+  }
+
+  /// `dataInicio` ('AAAA-MM-DD') é a partir de quando lançar; sem ela, hoje.
+  static Future<Recorrencia> criarRecorrencia(Recorrencia r, {String? dataInicio}) async {
+    final corpo = await _post('/api/recorrencias', {
+      ...r.toJson(),
+      if (dataInicio != null) 'data_inicio': dataInicio,
+    });
+    return Recorrencia.fromJson(corpo);
+  }
+
+  static Future<Recorrencia> atualizarRecorrencia(int id, Map<String, dynamic> dados) async {
+    final corpo = await _put('/api/recorrencias/$id', dados);
+    return Recorrencia.fromJson(corpo);
+  }
+
+  static Future<void> deletarRecorrencia(int id) => _delete('/api/recorrencias/$id');
+
   // ─── Metas: RF06/RF07/RF14/RF15/RF17 ────────────────────────────────────────
 
   static Future<List<Meta>> listarMetas() async {
@@ -426,6 +495,12 @@ class ApiService {
 
   static Future<Map<String, dynamic>> scoreFinanceiro() async {
     return await _get('/api/orientacao/score') as Map<String, dynamic>;
+  }
+
+  /// Evolução do score: um ponto por dia em que o usuário consultou.
+  static Future<Map<String, dynamic>> historicoScore({int dias = 90}) async {
+    return await _get('/api/orientacao/score/historico', {'dias': '$dias'})
+        as Map<String, dynamic>;
   }
 
   // ─── Mercado: cotação do dólar e taxas oficiais (Selic/CDI/IPCA) ────────────
