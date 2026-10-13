@@ -38,6 +38,12 @@ class Usuario(ModeloBase):
     limites_categoria = db.relationship(
         "LimiteCategoria", back_populates="usuario", cascade="all, delete-orphan"
     )
+    recorrencias = db.relationship(
+        "Recorrencia", back_populates="usuario", cascade="all, delete-orphan"
+    )
+    historico_score = db.relationship(
+        "ScoreHistorico", back_populates="usuario", cascade="all, delete-orphan"
+    )
 
     def definir_senha(self, senha_texto_puro):
         """Gera e armazena o hash da senha. A senha em texto puro nunca

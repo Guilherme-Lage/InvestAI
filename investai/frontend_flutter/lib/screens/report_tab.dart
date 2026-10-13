@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/movimentacao.dart';
+import '../models/recorrencia.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../utils/formato_moeda.dart';
+import '../utils/salvar_arquivo.dart';
+import 'recorrentes_screen.dart';
 
-/// Relatório: RF10 (resumo mensal), RF11 (gráfico por categoria), RF12/RF13
-/// (alertas de inatividade e de limite) e RF19 (histórico com filtro).
+/// Relatório: RF10 (resumo mensal, com exportação em PDF/CSV), RF11 (gráfico
+/// por categoria), RF12/RF13 (alertas de inatividade e de limite) e RF19
+/// (histórico com filtro). Também dá acesso às recorrências.
 class ReportTab extends StatefulWidget {
   const ReportTab({super.key});
 
@@ -93,6 +97,25 @@ class _ReportTabState extends State<ReportTab> {
     if (resultado == true) _carregar();
   }
 
+  Future<void> _abrirRecorrentes() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const RecorrentesScreen()),
+    );
+    // Cadastrar uma recorrência pode já ter lançado a movimentação do mês.
+    if (mounted) _carregar();
+  }
+
+  Future<void> _abrirExportacao() async {
+    final mensagem = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _ExportarRelatorio(),
+    );
+    if (mensagem == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensagem)));
+  }
+
   Future<void> _remover(Movimentacao m) async {
     try {
       await ApiService.deletarMovimentacao(m.id!);
@@ -132,9 +155,27 @@ class _ReportTabState extends State<ReportTab> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                     children: [
-                      Text('Relatório',
-                          style: GoogleFonts.inter(
-                              fontSize: 24, fontWeight: FontWeight.w800, color: InvestAITheme.texto)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text('Relatório',
+                                style: GoogleFonts.inter(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800,
+                                    color: InvestAITheme.texto)),
+                          ),
+                          IconButton(
+                            tooltip: 'Receitas e despesas recorrentes',
+                            icon: const Icon(Icons.event_repeat_rounded, color: InvestAITheme.verde),
+                            onPressed: _abrirRecorrentes,
+                          ),
+                          IconButton(
+                            tooltip: 'Exportar relatório (PDF ou CSV)',
+                            icon: const Icon(Icons.file_download_outlined, color: InvestAITheme.verde),
+                            onPressed: _abrirExportacao,
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 16),
 
                       if (_relatorio != null) _ResumoMensal(relatorio: _relatorio!, reais: _reais),
@@ -631,6 +672,7 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
   final _descricaoCtrl = TextEditingController();
   final _valorCtrl = TextEditingController();
   DateTime _data = DateTime.now();
+  bool _repetir = false;
   bool _salvando = false;
   String? _erro;
 
@@ -641,7 +683,9 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
     _tipo = e?.tipo ?? 'gasto';
     _categoria = e?.categoria ?? Categorias.despesa.first;
     _descricaoCtrl.text = e?.descricao ?? '';
-    _valorCtrl.text = e != null ? e.valor.toStringAsFixed(2) : '';
+    // Vírgula decimal: é o formato que o valorDigitado() espera. Com ponto,
+    // "1500.00" seria lido como 150000 ao salvar sem mexer no campo.
+    _valorCtrl.text = e != null ? e.valor.toStringAsFixed(2).replaceAll('.', ',') : '';
     if (e != null) {
       _data = DateTime.tryParse(e.data) ?? DateTime.now();
     }
@@ -676,6 +720,19 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
     try {
       if (widget.existente != null) {
         await ApiService.atualizarMovimentacao(widget.existente!.id!, movimentacao);
+      } else if (_repetir) {
+        // O backend lança a primeira movimentação na data escolhida (se ela
+        // já chegou) e as seguintes todo mês, no mesmo dia.
+        await ApiService.criarRecorrencia(
+          Recorrencia(
+            descricao: movimentacao.descricao,
+            tipo: movimentacao.tipo,
+            valor: movimentacao.valor,
+            categoria: movimentacao.categoria,
+            diaMes: _data.day,
+          ),
+          dataInicio: movimentacao.data,
+        );
       } else {
         await ApiService.criarMovimentacao(movimentacao);
       }
@@ -706,7 +763,9 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
         ),
         child: Form(
           key: _formKey,
-          child: Column(
+          // Com o teclado aberto o formulário não cabe em telas pequenas.
+          child: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -809,6 +868,24 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
                 ),
               ),
 
+              // Só ao criar: uma transação já lançada não vira recorrência.
+              if (widget.existente == null)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  activeThumbColor: InvestAITheme.verde,
+                  value: _repetir,
+                  onChanged: (v) => setState(() => _repetir = v),
+                  title: Text('Repetir todo mês',
+                      style: GoogleFonts.inter(
+                          fontSize: 14, fontWeight: FontWeight.w600, color: InvestAITheme.texto)),
+                  subtitle: Text(
+                    _repetir
+                        ? 'Lançada sozinha todo dia ${_data.day}. Gerencie em Recorrentes.'
+                        : 'Para aluguel, assinaturas, salário...',
+                    style: GoogleFonts.inter(fontSize: 11.5, color: InvestAITheme.cinza),
+                  ),
+                ),
+
               if (_erro != null) ...[
                 const SizedBox(height: 14),
                 Text(_erro!, style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.vermelho)),
@@ -824,7 +901,7 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
                     : Text(widget.existente != null ? 'Salvar alterações' : 'Adicionar'),
               ),
             ],
-          ),
+          )),
         ),
       ),
     );
@@ -866,6 +943,171 @@ class _BotaoTipo extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: selecionado ? cor : InvestAITheme.cinza)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Escolha do mês e do formato para exportar o relatório mensal (RF10).
+/// Fecha devolvendo a mensagem de confirmação para a tela mostrar.
+class _ExportarRelatorio extends StatefulWidget {
+  const _ExportarRelatorio();
+
+  @override
+  State<_ExportarRelatorio> createState() => _ExportarRelatorioState();
+}
+
+class _ExportarRelatorioState extends State<_ExportarRelatorio> {
+  static const _meses = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  ];
+  static const _tipos = {'pdf': 'application/pdf', 'csv': 'text/csv'};
+
+  late DateTime _mes; // sempre o dia 1 do mês escolhido
+  String? _exportando; // formato em andamento, para o indicador no botão
+  String? _erro;
+
+  @override
+  void initState() {
+    super.initState();
+    final hoje = DateTime.now();
+    _mes = DateTime(hoje.year, hoje.month);
+  }
+
+  bool get _ehMesAtual {
+    final hoje = DateTime.now();
+    return _mes.year == hoje.year && _mes.month == hoje.month;
+  }
+
+  void _mudarMes(int passo) {
+    setState(() => _mes = DateTime(_mes.year, _mes.month + passo));
+  }
+
+  Future<void> _exportar(String formato) async {
+    setState(() {
+      _exportando = formato;
+      _erro = null;
+    });
+    try {
+      final bytes = await ApiService.exportarRelatorio(
+          formato: formato, ano: _mes.year, mes: _mes.month);
+      final nome =
+          'relatorio-investai-${_mes.year}-${_mes.month.toString().padLeft(2, '0')}.$formato';
+      final caminho = await salvarArquivo(bytes, nome, _tipos[formato]!);
+      if (!mounted) return;
+      Navigator.pop(
+          context, caminho == null ? 'Relatório baixado: $nome' : 'Relatório salvo em $caminho');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = e is ApiException ? e.mensagem : 'Não foi possível salvar o arquivo.';
+        _exportando = null;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ocupado = _exportando != null;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      decoration: const BoxDecoration(
+        color: InvestAITheme.fundo,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(color: InvestAITheme.borda),
+          left: BorderSide(color: InvestAITheme.borda),
+          right: BorderSide(color: InvestAITheme.borda),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: InvestAITheme.borda, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Exportar relatório',
+                style: GoogleFonts.inter(
+                    fontSize: 18, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
+            const SizedBox(height: 4),
+            Text('Resumo, gastos por categoria e todas as movimentações do mês.',
+                style: GoogleFonts.inter(fontSize: 12.5, color: InvestAITheme.cinza)),
+            const SizedBox(height: 16),
+
+            Container(
+              decoration: BoxDecoration(
+                color: InvestAITheme.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: InvestAITheme.borda),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Mês anterior',
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    color: InvestAITheme.verde,
+                    onPressed: ocupado ? null : () => _mudarMes(-1),
+                  ),
+                  Expanded(
+                    child: Text('${_meses[_mes.month - 1]} de ${_mes.year}',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                            fontSize: 14, fontWeight: FontWeight.w600, color: InvestAITheme.texto)),
+                  ),
+                  IconButton(
+                    tooltip: 'Próximo mês',
+                    icon: const Icon(Icons.chevron_right_rounded),
+                    color: InvestAITheme.verde,
+                    disabledColor: InvestAITheme.borda,
+                    // Não existe relatório de mês que ainda não começou.
+                    onPressed: ocupado || _ehMesAtual ? null : () => _mudarMes(1),
+                  ),
+                ],
+              ),
+            ),
+
+            if (_erro != null) ...[
+              const SizedBox(height: 14),
+              Text(_erro!, style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.vermelho)),
+            ],
+
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: ocupado ? null : () => _exportar('pdf'),
+              icon: _exportando == 'pdf'
+                  ? const SizedBox(
+                      height: 18, width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: InvestAITheme.verdeEscuro))
+                  : const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('PDF para ler ou enviar'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: ocupado ? null : () => _exportar('csv'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: InvestAITheme.verde,
+                side: const BorderSide(color: InvestAITheme.verde),
+                minimumSize: const Size(double.infinity, 52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: _exportando == 'csv'
+                  ? const SizedBox(
+                      height: 18, width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: InvestAITheme.verde))
+                  : const Icon(Icons.table_chart_outlined),
+              label: const Text('CSV para abrir no Excel'),
+            ),
           ],
         ),
       ),

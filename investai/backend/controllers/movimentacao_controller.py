@@ -1,4 +1,4 @@
-from flask import Blueprint, g, request, jsonify
+from flask import Blueprint, Response, g, request, jsonify
 
 from services.movimentacao.criar_movimentacao_service import CriarMovimentacaoService
 from services.movimentacao.listar_movimentacoes_service import ListarMovimentacoesService
@@ -9,6 +9,7 @@ from services.movimentacao.calcular_saldo_service import CalcularSaldoService
 from services.movimentacao.calcular_capacidade_economia_service import CalcularCapacidadeEconomiaService
 from services.movimentacao.calcular_sobrevivencia_service import CalcularSobrevivenciaService
 from services.movimentacao.gerar_relatorio_mensal_service import GerarRelatorioMensalService
+from services.movimentacao.exportar_relatorio_mensal_service import ExportarRelatorioMensalService
 from services.movimentacao.calcular_gastos_por_categoria_service import CalcularGastosPorCategoriaService
 from services.movimentacao.gerar_alertas_service import GerarAlertasService
 from .auth_decorators import token_obrigatorio
@@ -110,6 +111,29 @@ class MovimentacaoController:
         return jsonify(GerarRelatorioMensalService().executar(g.usuario_id, ano=ano, mes=mes))
 
     @token_obrigatorio
+    def exportar_relatorio(self):
+        """Relatório financeiro mensal (RF10) como arquivo para baixar.
+
+        Query params: formato (pdf|csv) e, opcionais, ano e mes.
+        """
+        try:
+            arquivo = ExportarRelatorioMensalService().executar(
+                g.usuario_id,
+                formato=request.args.get("formato", "pdf"),
+                ano=request.args.get("ano", type=int),
+                mes=request.args.get("mes", type=int),
+            )
+        except ValueError as erro:
+            return jsonify({"erro": str(erro)}), 400
+        return Response(
+            arquivo["conteudo"],
+            mimetype=arquivo["mimetype"],
+            headers={
+                "Content-Disposition": f'attachment; filename="{arquivo["nome_arquivo"]}"'
+            },
+        )
+
+    @token_obrigatorio
     def gastos_por_categoria(self):
         """RF11 - total de gastos agrupado por categoria, para o gráfico.
 
@@ -137,6 +161,7 @@ movimentacao_bp.add_url_rule("/saldo", view_func=controller.saldo, methods=["GET
 movimentacao_bp.add_url_rule("/capacidade-economia", view_func=controller.capacidade_economia, methods=["GET"])
 movimentacao_bp.add_url_rule("/sobrevivencia", view_func=controller.sobrevivencia, methods=["GET"])
 movimentacao_bp.add_url_rule("/relatorio-mensal", view_func=controller.relatorio_mensal, methods=["GET"])
+movimentacao_bp.add_url_rule("/relatorio-mensal/exportar", view_func=controller.exportar_relatorio, methods=["GET"])
 movimentacao_bp.add_url_rule("/gastos-por-categoria", view_func=controller.gastos_por_categoria, methods=["GET"])
 movimentacao_bp.add_url_rule("/alertas", view_func=controller.alertas, methods=["GET"])
 movimentacao_bp.add_url_rule("/<int:id>", view_func=controller.buscar, methods=["GET"])

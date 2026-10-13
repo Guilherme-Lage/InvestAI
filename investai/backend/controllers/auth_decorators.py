@@ -3,9 +3,12 @@ from functools import wraps
 import jwt
 from flask import g, jsonify, request
 
-from models import Usuario
+from models import Usuario, db
 from repositories import TokenRevogadoRepository
 from services.auth_service import AuthService
+from services.recorrencia.lancar_recorrencias_pendentes_service import (
+    LancarRecorrenciasPendentesService,
+)
 
 
 def token_obrigatorio(funcao):
@@ -40,6 +43,16 @@ def token_obrigatorio(funcao):
 
         g.usuario_id = usuario_id
         g.token_jti = payload["jti"]
+
+        # Lança as contas recorrentes cujo dia já chegou antes de atender a
+        # rota: assim saldo, relatório e histórico já saem com elas, seja
+        # qual for a primeira tela que o usuário abrir. Uma falha aqui não
+        # pode derrubar a requisição - fica para a próxima.
+        try:
+            LancarRecorrenciasPendentesService().executar(usuario_id)
+        except Exception:
+            db.session.rollback()
+
         return funcao(*args, **kwargs)
 
     return decorada
