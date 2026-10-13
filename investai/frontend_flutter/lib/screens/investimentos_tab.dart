@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/investimento.dart';
 import '../services/api_service.dart';
@@ -23,6 +24,7 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
   List<Investimento> _investimentos = [];
   Map<String, dynamic>? _guia;
   Map<String, dynamic>? _score;
+  Map<String, dynamic>? _historicoScore;
   Map<String, dynamic>? _taxas;
   Map<String, dynamic>? _tesouro;
   Map<String, dynamic>? _comparacao;
@@ -58,6 +60,16 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
         _carregando = false;
       });
       return;
+    }
+
+    // O gráfico de evolução é um complemento do score: se falhar, o score
+    // atual continua aparecendo normalmente.
+    try {
+      final historico = await ApiService.historicoScore();
+      if (!mounted) return;
+      setState(() => _historicoScore = historico);
+    } catch (_) {
+      // sem histórico agora
     }
 
     // Depende das taxas externas, então vai junto do bloco tolerante a falha.
@@ -190,7 +202,10 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
                           icone: Icons.speed_rounded,
                           titulo: 'Seu score financeiro',
                           resumo: '${_score!['score']} de 1000 · ${_score!['classificacao']}',
-                          child: _ScoreCard(score: _score!, semMoldura: true),
+                          child: _ScoreCard(
+                              score: _score!,
+                              historico: _historicoScore,
+                              semMoldura: true),
                         ),
 
                       _SecaoRecolhivel(
@@ -785,8 +800,9 @@ class _InvestimentoCard extends StatelessWidget {
 /// com classificação qualitativa (Ruim/Regular/Bom/Excelente).
 class _ScoreCard extends StatelessWidget {
   final Map<String, dynamic> score;
+  final Map<String, dynamic>? historico;
   final bool semMoldura;
-  const _ScoreCard({required this.score, this.semMoldura = false});
+  const _ScoreCard({required this.score, this.historico, this.semMoldura = false});
 
   Color get _cor {
     final valor = (score['score'] ?? 0) as int;
@@ -845,8 +861,122 @@ class _ScoreCard extends StatelessWidget {
               valueColor: AlwaysStoppedAnimation(_cor),
             ),
           ),
+          if (historico != null) ...[
+            const SizedBox(height: 18),
+            _EvolucaoScore(historico: historico!, cor: _cor),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// Evolução do score ao longo do tempo. Cada ponto é um dia em que o
+/// usuário abriu esta aba, então o gráfico começa vazio e vai se formando
+/// com o uso - não há como calcular o score de datas passadas.
+class _EvolucaoScore extends StatelessWidget {
+  final Map<String, dynamic> historico;
+  final Color cor;
+  const _EvolucaoScore({required this.historico, required this.cor});
+
+  String _dataCurta(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final pontos = ((historico['historico'] as List?) ?? [])
+        .cast<Map<String, dynamic>>()
+        .map((p) => (DateTime.tryParse(p['data'] ?? ''), (p['score'] as num).toDouble()))
+        .where((p) => p.$1 != null)
+        .map((p) => (p.$1!, p.$2))
+        .toList();
+
+    final titulo = Text('Evolução',
+        style: GoogleFonts.inter(
+            fontSize: 12.5, fontWeight: FontWeight.w700, color: InvestAITheme.texto));
+
+    if (pontos.length < 2) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          titulo,
+          const SizedBox(height: 4),
+          Text(
+            'Seu histórico começa hoje. Volte nos próximos dias para ver '
+            'como o score evolui.',
+            style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza, height: 1.4),
+          ),
+        ],
+      );
+    }
+
+    final variacao = ((historico['variacao'] ?? 0) as num).round();
+    final corVariacao = variacao > 0
+        ? InvestAITheme.verde
+        : variacao < 0
+            ? InvestAITheme.vermelho
+            : InvestAITheme.cinza;
+    final textoVariacao = variacao == 0
+        ? 'estável'
+        : '${variacao > 0 ? '+' : ''}$variacao pontos';
+
+    final inicio = pontos.first.$1;
+    final valores = pontos.map((p) => p.$2).toList();
+    final minimo = valores.reduce((a, b) => a < b ? a : b);
+    final maximo = valores.reduce((a, b) => a > b ? a : b);
+    // Folga para a linha não encostar nas bordas (e para um score que não
+    // mudou não virar um gráfico de altura zero).
+    final folga = (maximo - minimo) * 0.15 + 20;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: titulo),
+            Text('$textoVariacao desde ${_dataCurta(inicio)}',
+                style: GoogleFonts.inter(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: corVariacao)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 80,
+          child: LineChart(
+            LineChartData(
+              minY: minimo - folga,
+              maxY: maximo + folga,
+              gridData: const FlGridData(show: false),
+              titlesData: const FlTitlesData(show: false),
+              borderData: FlBorderData(show: false),
+              lineTouchData: const LineTouchData(enabled: false),
+              lineBarsData: [
+                LineChartBarData(
+                  // Eixo X em dias corridos: dias sem consulta viram um
+                  // trecho mais longo, em vez de parecerem dias seguidos.
+                  spots: [
+                    for (final p in pontos)
+                      FlSpot(p.$1.difference(inicio).inDays.toDouble(), p.$2),
+                  ],
+                  barWidth: 2.5,
+                  color: cor,
+                  dotData: FlDotData(show: pontos.length <= 15),
+                  belowBarData: BarAreaData(show: true, color: cor.withOpacity(0.12)),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(_dataCurta(inicio),
+                style: GoogleFonts.inter(fontSize: 10, color: InvestAITheme.cinza)),
+            Text('hoje', style: GoogleFonts.inter(fontSize: 10, color: InvestAITheme.cinza)),
+          ],
+        ),
+      ],
     );
   }
 }

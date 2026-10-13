@@ -5,6 +5,8 @@ from .investimento import Investimento
 from .meta import Meta
 from .token_revogado import TokenRevogado
 from .limite_categoria import LimiteCategoria
+from .recorrencia import Recorrencia
+from .score_historico import ScoreHistorico
 
 __all__ = [
     "db",
@@ -15,4 +17,6 @@ __all__ = [
     "Meta",
     "TokenRevogado",
     "LimiteCategoria",
+    "Recorrencia",
+    "ScoreHistorico",
 ]

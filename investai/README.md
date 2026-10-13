@@ -38,6 +38,7 @@ investai/
     │   ├── meta/                   → CriarMetaService, CalcularStatusReservaEmergenciaService, ...
     │   ├── investimento/           → CriarInvestimentoService, ListarRankingInvestimentosService, ...
     │   ├── limite_categoria/       → DefinirLimiteCategoriaService, ...
+    │   ├── recorrencia/            → CriarRecorrenciaService, LancarRecorrenciasPendentesService, ...
     │   └── mercado/                → BuscarCotacaoDolarService, BuscarTaxasMercadoService, BuscarTitulosTesouroService
     └── database/
         └── create_database.sql     → script de criação do banco e tabelas
@@ -88,6 +89,13 @@ localmente (`shared_preferences`) e o envia em toda chamada autenticada.
   `reserva_emergencia`), com progresso calculado. FK para Usuario.
 - **LimiteCategoria** — categoria, valor_limite (limite de gasto mensal por categoria). FK para Usuario.
 - **TokenRevogado** — registra tokens JWT invalidados por logout, para um logout seguro de verdade.
+- **Recorrencia** — descricao, tipo, valor, categoria, dia_mes, data_inicio, ativa,
+  ultimo_mes_lancado. Receita ou despesa que o sistema lança sozinho todo mês. FK para Usuario.
+- **ScoreHistorico** — data, score. Um retrato do score financeiro por dia, base do
+  gráfico de evolução. FK para Usuario.
+
+`Recorrencia` e `ScoreHistorico` são extensões posteriores ao relatório de elicitação:
+não fazem parte das 7 entidades do DER original nem dos RF01–RF20.
 
 Todas (exceto `TokenRevogado`) herdam de `ModeloBase`, que fornece criar (`salvar`),
 listar, buscar, atualizar e deletar.
@@ -132,6 +140,7 @@ exigem `Authorization: Bearer <token>` e operam sobre o usuário autenticado.
 | GET | `/api/movimentacoes/capacidade-economia` | Capacidade de economia mensal (RF08) |
 | GET | `/api/movimentacoes/sobrevivencia` | Tempo de sobrevivência sem renda (RF09) |
 | GET | `/api/movimentacoes/relatorio-mensal` | Relatório financeiro mensal (RF10) |
+| GET | `/api/movimentacoes/relatorio-mensal/exportar` | Relatório mensal como arquivo — `formato=pdf\|csv`, `ano`, `mes` |
 | GET | `/api/movimentacoes/gastos-por-categoria` | Gastos agrupados por categoria (RF11) |
 | GET | `/api/movimentacoes/alertas` | Alertas de inatividade e de limite por categoria (RF12/RF13) |
 
@@ -153,6 +162,20 @@ exigem `Authorization: Bearer <token>` e operam sobre o usuário autenticado.
 | GET / POST / DELETE | `/api/limites` | Limite de gasto mensal por categoria (RF13) |
 | GET | `/api/orientacao/guia` | Guia financeiro passo a passo (RF16) |
 | GET | `/api/orientacao/score` | Score financeiro, 0–1000 (RF20) |
+| GET | `/api/orientacao/score/historico` | Evolução do score — um ponto por dia consultado (`dias`, padrão 90) |
+
+### Recorrências
+
+| Método | Rota | Ação |
+|--------|------|------|
+| GET / POST | `/api/recorrencias` | Listar / cadastrar receita ou despesa que se repete todo mês |
+| PUT / DELETE | `/api/recorrencias/<id>` | Editar, pausar (`ativa=false`) ou retomar / excluir |
+
+Não há agendador: as recorrências vencidas são lançadas quando o usuário faz qualquer
+chamada autenticada (`token_obrigatorio` → `LancarRecorrenciasPendentesService`),
+cobrindo também os meses em que o app ficou fechado. A coluna `ultimo_mes_lancado` é
+atualizada com checagem no próprio `UPDATE`, o que impede lançamento em dobro quando
+várias requisições chegam juntas.
 
 ### Assistente de IA
 
@@ -226,6 +249,9 @@ Controller (classe) → Service (`executar()`) → Model/Repository → Banco de
 19. Consultar taxas oficiais Selic/CDI/IPCA (integração externa — Banco Central) — `MercadoController.taxas` → `BuscarTaxasMercadoService`
 20. Consultar títulos do Tesouro Direto ofertados agora (integração externa — Tesouro Transparente) — `MercadoController.tesouro` → `BuscarTitulosTesouroService`
 21. Conversar com o assistente de IA sobre a própria situação financeira (integração externa — agente no n8n) — `IaController.perguntar` → `ConsultarIaService`
+22. Cadastrar receita/despesa recorrente, lançada automaticamente todo mês — `RecorrenciaController.criar` → `CriarRecorrenciaService` / `LancarRecorrenciasPendentesService`
+23. Exportar o relatório mensal em PDF ou CSV — `MovimentacaoController.exportar_relatorio` → `ExportarRelatorioMensalService`
+24. Acompanhar a evolução do score financeiro — `OrientacaoController.historico_score` → `ListarHistoricoScoreService`
 
 ## Funcionalidades (telas do app Flutter)
 
@@ -234,9 +260,11 @@ Controller (classe) → Service (`executar()`) → Model/Repository → Banco de
 - **Metas** — criação e acompanhamento de metas com barra de progresso, reserva de
   emergência com aporte dedicado, e aporte mensal sugerido por meta.
 - **Relatório** — gráfico de gastos por categoria, notificações de comportamento
-  financeiro e histórico completo de transações com filtros.
-- **Investir** — score financeiro, carteira de investimentos e sugestões
-  personalizadas por perfil de risco, liberadas após a reserva de emergência.
+  financeiro e histórico completo de transações com filtros. No topo, atalhos para as
+  recorrências e para exportar o mês em PDF/CSV; ao registrar uma transação, a opção
+  "Repetir todo mês" já a cadastra como recorrente.
+- **Investir** — score financeiro com gráfico de evolução, carteira de investimentos e
+  sugestões personalizadas por perfil de risco, liberadas após a reserva de emergência.
 - **Perfil** — perfil de investidor, limites de gasto por categoria e logout.
 
 ## Como executar o projeto
@@ -271,7 +299,8 @@ dispositivo físico.
 ## Tecnologias
 
 **Backend:** Python, Flask, Flask-SQLAlchemy, Flask-Cors, PyJWT, Werkzeug (hash de
-senha) e SQLite (o SQL de produção é voltado a MySQL/MariaDB).
+senha), fpdf2 (relatório em PDF) e SQLite (o SQL de produção é voltado a MySQL/MariaDB).
 
 **Frontend:** Flutter/Dart, `http` (cliente da API), `shared_preferences` (sessão
-local), `google_fonts`, `fl_chart` (gráficos).
+local), `google_fonts`, `fl_chart` (gráficos), `path_provider` e `web` (salvar o
+relatório exportado).
