@@ -121,3 +121,43 @@ CREATE TABLE IF NOT EXISTS limite_categoria (
     CONSTRAINT uq_limite_usuario_categoria
         UNIQUE (usuario_id, categoria)
 );
+
+-- ------------------------------------------------------------
+-- Tabela: recorrencia  (receita ou despesa lançada todo mês)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS recorrencia (
+    id                INT AUTO_INCREMENT PRIMARY KEY,
+    descricao         VARCHAR(120)  NOT NULL,
+    tipo              VARCHAR(10)   NOT NULL DEFAULT 'gasto',  -- 'renda' ou 'gasto'
+    valor             DECIMAL(12,2) NOT NULL,
+    categoria         VARCHAR(40)   NOT NULL DEFAULT 'outros',
+    dia_mes           INT           NOT NULL,                  -- 1 a 31
+    data_inicio       VARCHAR(10)   NOT NULL,                  -- 'AAAA-MM-DD'
+    ativa             BOOLEAN       NOT NULL DEFAULT TRUE,
+    ultimo_mes_lancado VARCHAR(7),                             -- 'AAAA-MM'
+    usuario_id        INT           NOT NULL,
+    data_criacao      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                    ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_recorrencia_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuario (id)
+        ON DELETE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- Tabela: score_historico  (um retrato do score financeiro por dia)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS score_historico (
+    id                INT AUTO_INCREMENT PRIMARY KEY,
+    data              VARCHAR(10)   NOT NULL,                  -- 'AAAA-MM-DD'
+    score             INT           NOT NULL,
+    usuario_id        INT           NOT NULL,
+    data_criacao      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                    ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_score_historico_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuario (id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_score_usuario_data
+        UNIQUE (usuario_id, data)
+);

@@ -4,6 +4,8 @@ from .investimento_repository import InvestimentoRepository
 from .meta_repository import MetaRepository
 from .limite_categoria_repository import LimiteCategoriaRepository
 from .token_revogado_repository import TokenRevogadoRepository
+from .recorrencia_repository import RecorrenciaRepository
+from .score_historico_repository import ScoreHistoricoRepository
 
 __all__ = [
     "UsuarioRepository",
@@ -12,4 +14,6 @@ __all__ = [
     "MetaRepository",
     "LimiteCategoriaRepository",
     "TokenRevogadoRepository",
+    "RecorrenciaRepository",
+    "ScoreHistoricoRepository",
 ]

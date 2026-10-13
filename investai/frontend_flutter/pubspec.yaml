@@ -17,6 +17,10 @@ dependencies:
   # Renderiza o termo de consentimento, que é mantido em Markdown no
   # repositório para poder ser entregue como documento.
   flutter_markdown: ^0.7.1
+  # Salvam o relatório exportado (PDF/CSV): pasta Downloads no desktop e
+  # download pelo navegador na web.
+  path_provider: ^2.1.6
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
