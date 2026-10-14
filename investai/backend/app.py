@@ -16,6 +16,7 @@ from controllers import (
     mercado_bp,
     ia_bp,
     recorrencia_bp,
+    importacao_bp,
 )
 from services.mercado.buscar_cotacao_dolar_service import BuscarCotacaoDolarService
 from services.mercado.buscar_taxas_mercado_service import BuscarTaxasMercadoService
@@ -73,6 +74,7 @@ def criar_app(config=None):
     app.register_blueprint(mercado_bp)
     app.register_blueprint(ia_bp)
     app.register_blueprint(recorrencia_bp)
+    app.register_blueprint(importacao_bp)
 
     with app.app_context():
         db.create_all()
@@ -94,7 +96,7 @@ def criar_app(config=None):
                          "/api/investimentos", "/api/metas",
                          "/api/limites", "/api/orientacao",
                          "/api/mercado", "/api/ia",
-                         "/api/recorrencias"]
+                         "/api/recorrencias", "/api/importacao"]
         })
 
     return app
@@ -102,4 +104,9 @@ def criar_app(config=None):
 
 if __name__ == "__main__":
     app = criar_app()
-    app.run(debug=True)
+    # Por padrão só o próprio computador acessa a API. Para testar pelo
+    # celular na mesma rede Wi-Fi, suba com INVESTAI_HOST=0.0.0.0.
+    host = os.environ.get("INVESTAI_HOST", "127.0.0.1")
+    # O modo debug abre um console que executa código Python pelo
+    # navegador: fica restrito a quando só esta máquina alcança o servidor.
+    app.run(host=host, debug=host in ("127.0.0.1", "localhost"))

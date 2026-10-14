@@ -272,7 +272,14 @@ class _SecaoRecolhivel extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: InvestAITheme.borda),
       ),
-      child: Theme(
+      // O Material dá ao ExpansionTile onde desenhar o efeito de toque; sem
+      // ele o fundo do Container cobriria o efeito, e o Flutter acusa erro
+      // em modo debug.
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: Theme(
         // Remove as linhas divisórias padrão do ExpansionTile, que destoam
         // do resto dos cards.
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -293,6 +300,7 @@ class _SecaoRecolhivel extends StatelessWidget {
                   style: GoogleFonts.inter(
                       fontSize: 11.5, color: InvestAITheme.cinza)),
           children: [child],
+        ),
         ),
       ),
     );
