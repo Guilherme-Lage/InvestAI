@@ -7,11 +7,13 @@ import '../services/api_service.dart';
 import '../theme.dart';
 import '../utils/formato_moeda.dart';
 import '../utils/salvar_arquivo.dart';
+import 'importar_extrato_screen.dart';
 import 'recorrentes_screen.dart';
 
 /// Relatório: RF10 (resumo mensal, com exportação em PDF/CSV), RF11 (gráfico
 /// por categoria), RF12/RF13 (alertas de inatividade e de limite) e RF19
-/// (histórico com filtro). Também dá acesso às recorrências.
+/// (histórico com filtro). Também dá acesso às recorrências e à importação
+/// de extrato bancário.
 class ReportTab extends StatefulWidget {
   const ReportTab({super.key});
 
@@ -105,6 +107,15 @@ class _ReportTabState extends State<ReportTab> {
     if (mounted) _carregar();
   }
 
+  Future<void> _abrirImportacao() async {
+    final mensagem = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const ImportarExtratoScreen()),
+    );
+    if (mensagem == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensagem)));
+    _carregar();
+  }
+
   Future<void> _abrirExportacao() async {
     final mensagem = await showModalBottomSheet<String>(
       context: context,
@@ -163,6 +174,11 @@ class _ReportTabState extends State<ReportTab> {
                                     fontSize: 24,
                                     fontWeight: FontWeight.w800,
                                     color: InvestAITheme.texto)),
+                          ),
+                          IconButton(
+                            tooltip: 'Importar extrato do banco',
+                            icon: const Icon(Icons.upload_file_rounded, color: InvestAITheme.verde),
+                            onPressed: _abrirImportacao,
                           ),
                           IconButton(
                             tooltip: 'Receitas e despesas recorrentes',
@@ -870,19 +886,24 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
 
               // Só ao criar: uma transação já lançada não vira recorrência.
               if (widget.existente == null)
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  activeThumbColor: InvestAITheme.verde,
-                  value: _repetir,
-                  onChanged: (v) => setState(() => _repetir = v),
-                  title: Text('Repetir todo mês',
-                      style: GoogleFonts.inter(
-                          fontSize: 14, fontWeight: FontWeight.w600, color: InvestAITheme.texto)),
-                  subtitle: Text(
-                    _repetir
-                        ? 'Lançada sozinha todo dia ${_data.day}. Gerencie em Recorrentes.'
-                        : 'Para aluguel, assinaturas, salário...',
-                    style: GoogleFonts.inter(fontSize: 11.5, color: InvestAITheme.cinza),
+                // O Material dá à chave onde desenhar o efeito de toque;
+                // sem ele o fundo do formulário cobriria o efeito.
+                Material(
+                  type: MaterialType.transparency,
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    activeThumbColor: InvestAITheme.verde,
+                    value: _repetir,
+                    onChanged: (v) => setState(() => _repetir = v),
+                    title: Text('Repetir todo mês',
+                        style: GoogleFonts.inter(
+                            fontSize: 14, fontWeight: FontWeight.w600, color: InvestAITheme.texto)),
+                    subtitle: Text(
+                      _repetir
+                          ? 'Lançada sozinha todo dia ${_data.day}. Gerencie em Recorrentes.'
+                          : 'Para aluguel, assinaturas, salário...',
+                      style: GoogleFonts.inter(fontSize: 11.5, color: InvestAITheme.cinza),
+                    ),
                   ),
                 ),
 

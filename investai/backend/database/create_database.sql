@@ -161,3 +161,20 @@ CREATE TABLE IF NOT EXISTS score_historico (
     CONSTRAINT uq_score_usuario_data
         UNIQUE (usuario_id, data)
 );
+
+-- ------------------------------------------------------------
+-- Tabela: transacao_importada  (linhas de extrato bancário já importadas)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS transacao_importada (
+    id                INT AUTO_INCREMENT PRIMARY KEY,
+    identificador     VARCHAR(200)  NOT NULL,  -- banco + conta + código da transação no banco
+    usuario_id        INT           NOT NULL,
+    data_criacao      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                    ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_transacao_importada_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuario (id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_importada_usuario_identificador
+        UNIQUE (usuario_id, identificador)
+);
