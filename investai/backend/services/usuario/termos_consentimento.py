@@ -7,7 +7,7 @@ em `Usuario.consentimento_versao`.
 
 import os
 
-VERSAO_ATUAL = "1.0"
+VERSAO_ATUAL = "1.1"
 
 TITULO = "Como usamos seus dados"
 
@@ -21,9 +21,15 @@ ITENS = [
     {
         "titulo": "O que coletamos",
         "texto": "Nome, e-mail, renda mensal, despesas, metas e os "
-                 "investimentos que você cadastrar. A senha é guardada "
+                 "investimentos que você cadastrar ou importar. A senha é guardada "
                  "apenas como código embaralhado (hash) — nem nós "
                  "conseguimos lê-la.",
+    },
+    {
+        "titulo": "Extrato do banco",
+        "texto": "Se você importar um extrato, lemos o arquivo e guardamos "
+                 "só as transações que você confirmar. O arquivo não fica "
+                 "salvo e nunca pedimos senha do banco.",
     },
     {
         "titulo": "Para que usamos",

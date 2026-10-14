@@ -7,6 +7,7 @@ from .token_revogado import TokenRevogado
 from .limite_categoria import LimiteCategoria
 from .recorrencia import Recorrencia
 from .score_historico import ScoreHistorico
+from .transacao_importada import TransacaoImportada
 
 __all__ = [
     "db",
@@ -19,4 +20,5 @@ __all__ = [
     "LimiteCategoria",
     "Recorrencia",
     "ScoreHistorico",
+    "TransacaoImportada",
 ]
