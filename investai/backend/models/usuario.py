@@ -44,6 +44,9 @@ class Usuario(ModeloBase):
     historico_score = db.relationship(
         "ScoreHistorico", back_populates="usuario", cascade="all, delete-orphan"
     )
+    transacoes_importadas = db.relationship(
+        "TransacaoImportada", back_populates="usuario", cascade="all, delete-orphan"
+    )
 
     def definir_senha(self, senha_texto_puro):
         """Gera e armazena o hash da senha. A senha em texto puro nunca

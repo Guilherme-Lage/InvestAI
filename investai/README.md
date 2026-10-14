@@ -7,6 +7,9 @@ equivalente a 3 meses de despesas. O projeto está dividido em `backend` (API em
 com autenticação JWT) e `frontend_flutter` (app mobile em Flutter), implementando os
 20 requisitos funcionais (RF01–RF20) do relatório de elicitação de requisitos.
 
+**Novo no projeto?** Comece pelo [guia do código](docs/GUIA_DO_CODIGO.md): ele mostra por
+onde ler, como as peças se ligam e onde está cada regra de negócio.
+
 ## Estrutura do repositório
 
 ```
@@ -39,6 +42,7 @@ investai/
     │   ├── investimento/           → CriarInvestimentoService, ListarRankingInvestimentosService, ...
     │   ├── limite_categoria/       → DefinirLimiteCategoriaService, ...
     │   ├── recorrencia/            → CriarRecorrenciaService, LancarRecorrenciasPendentesService, ...
+    │   ├── importacao/             → LerExtratoOfxService, AnalisarExtratoService, ConfirmarImportacaoService
     │   └── mercado/                → BuscarCotacaoDolarService, BuscarTaxasMercadoService, BuscarTitulosTesouroService
     └── database/
         └── create_database.sql     → script de criação do banco e tabelas
@@ -94,8 +98,11 @@ localmente (`shared_preferences`) e o envia em toda chamada autenticada.
 - **ScoreHistorico** — data, score. Um retrato do score financeiro por dia, base do
   gráfico de evolução. FK para Usuario.
 
-`Recorrencia` e `ScoreHistorico` são extensões posteriores ao relatório de elicitação:
-não fazem parte das 7 entidades do DER original nem dos RF01–RF20.
+- **TransacaoImportada** — identificador. Marca cada linha de extrato bancário que já
+  virou movimentação, para a mesma transação não ser importada duas vezes. FK para Usuario.
+
+`Recorrencia`, `ScoreHistorico` e `TransacaoImportada` são extensões posteriores ao
+relatório de elicitação: não fazem parte das 7 entidades do DER original nem dos RF01–RF20.
 
 Todas (exceto `TokenRevogado`) herdam de `ModeloBase`, que fornece criar (`salvar`),
 listar, buscar, atualizar e deletar.
@@ -170,6 +177,19 @@ exigem `Authorization: Bearer <token>` e operam sobre o usuário autenticado.
 |--------|------|------|
 | GET / POST | `/api/recorrencias` | Listar / cadastrar receita ou despesa que se repete todo mês |
 | PUT / DELETE | `/api/recorrencias/<id>` | Editar, pausar (`ativa=false`) ou retomar / excluir |
+
+### Importação de extrato bancário
+
+| Método | Rota | Ação |
+|--------|------|------|
+| POST | `/api/importacao/analisar` | Lê um extrato OFX (`arquivo_base64`) e devolve as transações para revisão. Não grava nada |
+| POST | `/api/importacao/confirmar` | Grava como movimentações as transações escolhidas na revisão |
+
+Cada transação analisada volta com uma `situacao`: `nova`, `ja_importada` (veio em
+importação anterior), `possivel_duplicata` (há movimentação de mesmo valor em data
+próxima, digitada ou lançada por recorrência) ou `movimentacao_interna` (aplicação,
+resgate, fatura). Só as `nova` vêm marcadas; a decisão final é do usuário. O app não se
+conecta ao banco: o usuário exporta o arquivo e o envia.
 
 Não há agendador: as recorrências vencidas são lançadas quando o usuário faz qualquer
 chamada autenticada (`token_obrigatorio` → `LancarRecorrenciasPendentesService`),
@@ -252,6 +272,7 @@ Controller (classe) → Service (`executar()`) → Model/Repository → Banco de
 22. Cadastrar receita/despesa recorrente, lançada automaticamente todo mês — `RecorrenciaController.criar` → `CriarRecorrenciaService` / `LancarRecorrenciasPendentesService`
 23. Exportar o relatório mensal em PDF ou CSV — `MovimentacaoController.exportar_relatorio` → `ExportarRelatorioMensalService`
 24. Acompanhar a evolução do score financeiro — `OrientacaoController.historico_score` → `ListarHistoricoScoreService`
+25. Importar extrato bancário (OFX) com revisão antes de gravar — `ImportacaoController.analisar` / `confirmar` → `AnalisarExtratoService` / `ConfirmarImportacaoService`
 
 ## Funcionalidades (telas do app Flutter)
 
@@ -261,8 +282,8 @@ Controller (classe) → Service (`executar()`) → Model/Repository → Banco de
   emergência com aporte dedicado, e aporte mensal sugerido por meta.
 - **Relatório** — gráfico de gastos por categoria, notificações de comportamento
   financeiro e histórico completo de transações com filtros. No topo, atalhos para as
-  recorrências e para exportar o mês em PDF/CSV; ao registrar uma transação, a opção
-  "Repetir todo mês" já a cadastra como recorrente.
+  importação de extrato do banco, as recorrências e a exportação do mês em PDF/CSV; ao
+  registrar uma transação, a opção "Repetir todo mês" já a cadastra como recorrente.
 - **Investir** — score financeiro com gráfico de evolução, carteira de investimentos e
   sugestões personalizadas por perfil de risco, liberadas após a reserva de emergência.
 - **Perfil** — perfil de investidor, limites de gasto por categoria e logout.
@@ -292,9 +313,61 @@ flutter pub get
 flutter run
 ```
 
-Ajuste `baseUrl` em `lib/services/api_service.dart` conforme o alvo: `localhost` para
-Web/Desktop, `10.0.2.2` para emulador Android, ou o IP da máquina na rede local para um
-dispositivo físico.
+O app procura o backend em `localhost:5000`. Para apontar para outro endereço sem editar
+o código, passe `--dart-define=API_URL=http://ENDERECO:5000` no `flutter run`/`flutter build`.
+
+### 3. Conta de demonstração
+
+Para apresentar o app sem digitar dezenas de transações antes:
+
+```bash
+cd backend
+python criar_conta_demo.py
+```
+
+Cria a conta `demo@investai.com` (senha `demo1234`) com três meses de movimentações,
+recorrências, metas, reserva de emergência pela metade, um limite estourado e histórico
+de score. Todos os dados são fictícios — inclusive os pontos antigos do score, que o
+sistema não tem como calcular para trás. Rodar de novo recria só essa conta, com as
+datas atualizadas; as demais não são tocadas.
+
+Para experimentar a importação sem usar o extrato de ninguém, `python
+gerar_extrato_exemplo.py` grava um extrato fictício do mês passado em
+`backend/instance/extrato_exemplo.ofx`. Importado na conta de demonstração, ele mostra o
+app apontando o salário, o aluguel, a internet e o streaming que já estavam lançados.
+A importação funciona na versão web do app (navegador do PC ou do celular).
+
+### 4. Testar pelo navegador do celular
+
+Com o celular na mesma rede Wi-Fi do computador (PowerShell):
+
+```powershell
+# Terminal 1 - backend aceitando conexões da rede (o modo debug é desligado sozinho)
+cd backend
+$env:INVESTAI_HOST = "0.0.0.0"; python app.py
+
+# Terminal 2 - app compilado e servido para a rede
+cd frontend_flutter
+flutter build web
+python -m http.server 8080 --bind 0.0.0.0 --directory build/web
+```
+
+Descubra o IP do computador com `ipconfig` (linha "Endereço IPv4") e abra
+`http://ESSE_IP:8080` no navegador do celular. Na web o app usa o endereço da própria
+página para achar o backend, então não é preciso configurar mais nada. Na primeira vez o
+Windows pergunta se o Python pode receber conexões: permita em redes privadas.
+
+### 5. Testes
+
+```bash
+cd backend && python -m unittest          # regras de negócio e rotas
+cd frontend_flutter && flutter test       # modelos, sessão e telas
+```
+
+Os testes de tela do Flutter (`test/telas_test.dart`) montam as abas com as respostas
+reais da API para a conta de demonstração, gravadas em `test/apoio/respostas_api.json`.
+Ao mudar o que uma rota devolve, regrave o arquivo com
+`python -m tests.gerar_respostas_para_flutter` (na pasta `backend`).
 
 ## Tecnologias
 

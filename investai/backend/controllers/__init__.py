@@ -7,6 +7,7 @@ from .orientacao_controller import orientacao_bp
 from .mercado_controller import mercado_bp
 from .ia_controller import ia_bp
 from .recorrencia_controller import recorrencia_bp
+from .importacao_controller import importacao_bp
 
 __all__ = [
     "usuario_bp",
@@ -18,4 +19,5 @@ __all__ = [
     "mercado_bp",
     "ia_bp",
     "recorrencia_bp",
+    "importacao_bp",
 ]

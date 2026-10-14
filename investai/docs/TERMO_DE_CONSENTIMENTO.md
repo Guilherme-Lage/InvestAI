@@ -1,6 +1,6 @@
 # TERMO DE CONSENTIMENTO PARA TRATAMENTO DE DADOS PESSOAIS — InvestAI
 
-**Versão 1.0**
+**Versão 1.1**
 
 Este Termo de Consentimento formaliza sua autorização expressa, livre, informada e
 inequívoca para o tratamento de seus dados pessoais pelo Projeto **InvestAI**, em
@@ -34,9 +34,19 @@ vinculado à finalidade que o justifica:
 | Metas financeiras (título, valor-alvo, valor atual, prazo) | Acompanhamento de progresso (RF06/RF07) e cálculo da reserva de emergência |
 | Investimentos cadastrados (nome, tipo, valor aplicado, indexador, data de aplicação) | Acompanhar a carteira e calcular rendimento com base em taxas públicas |
 | Limites de gasto por categoria | Emitir alertas quando o limite é ultrapassado (RF13) |
+| Receitas e despesas recorrentes (descrição, valor, categoria, dia do mês) | Lançar automaticamente, todo mês, as contas que se repetem |
+| Transações de extrato bancário importado pelo titular (data, descrição, valor) e o código de cada uma no banco | Registrar receitas e despesas sem digitação (RF03/RF04) e impedir que a mesma transação seja importada duas vezes |
+| Histórico do score financeiro (data e pontuação) | Mostrar a evolução do score ao longo do tempo (RF20) |
 | Perfil de investidor declarado (conservador, moderado ou arrojado) | Personalizar as sugestões de investimento (RF18) |
 | Registro deste consentimento (aceite, versão e data/hora) | Comprovar o consentimento, conforme art. 7º, I, da LGPD |
 | Identificador de sessão (JWT) e registro de sessões encerradas | Manter o acesso autenticado e invalidar sessões após logout (RF02) |
+
+**Extrato bancário:** a importação é opcional e parte sempre do titular, que exporta o
+arquivo no próprio banco e o envia ao aplicativo. O InvestAI **não se conecta ao banco**
+nem solicita senha, token ou qualquer credencial bancária. O arquivo é lido para extrair
+as transações e **não é armazenado**; ficam gravadas apenas as transações que o titular
+confirmar após revisá-las, além do código que as identifica no extrato. Números de
+agência e conta presentes no arquivo são usados somente para compor esse código.
 
 **Dados sensíveis:** o InvestAI **não solicita** dados sensíveis na acepção do art. 5º,
 II, da LGPD (origem racial, convicção religiosa, opinião política, dado de saúde, dado

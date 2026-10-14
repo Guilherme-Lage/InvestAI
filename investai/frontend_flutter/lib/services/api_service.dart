@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +11,7 @@ import '../models/meta.dart';
 import '../models/investimento.dart';
 import '../models/limite_categoria.dart';
 import '../models/recorrencia.dart';
+import '../models/transacao_extrato.dart';
 import '../screens/chat_ia_screen.dart' show limparConversaIa;
 import '../screens/login_screen.dart';
 
@@ -23,10 +25,25 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  // Altere para o IP/URL do seu backend Flask em produção
-  static const String baseUrl = 'http://localhost:5000'; // Emulador Android
-  // static const String baseUrl = 'http://localhost:5000'; // Web/Desktop
-  // static const String baseUrl = 'http://SEU_IP_LOCAL:5000'; // Dispositivo físico
+  /// Endereço do backend Flask.
+  ///
+  /// Para apontar para outro lugar sem editar o código, compile com
+  /// `--dart-define=API_URL=http://192.168.0.10:5000`.
+  static final String baseUrl = _resolverBaseUrl();
+
+  static String _resolverBaseUrl() {
+    const definida = String.fromEnvironment('API_URL');
+    if (definida.isNotEmpty) return definida;
+
+    // Na web, o backend roda na mesma máquina que serviu a página. Usar o
+    // endereço da própria página faz o app funcionar tanto no PC
+    // (localhost) quanto aberto pelo navegador do celular (IP do PC na
+    // rede) - "localhost", no celular, seria o próprio celular.
+    if (kIsWeb && Uri.base.host.isNotEmpty) {
+      return 'http://${Uri.base.host}:5000';
+    }
+    return 'http://localhost:5000';
+  }
 
   static const String _userIdKey = 'usuario_id';
   static const String _userNomeKey = 'usuario_nome';
@@ -408,6 +425,29 @@ class ApiService {
       await _tratarResposta(response); // sempre lança, com a mensagem do backend
     }
     return response.bodyBytes;
+  }
+
+  // ─── Importação de extrato bancário (OFX) ───────────────────────────────────
+  // Em dois passos: analisar devolve as transações para revisão, sem
+  // gravar nada; confirmar grava as que o usuário deixou marcadas.
+
+  static Future<List<TransacaoExtrato>> analisarExtrato(Uint8List arquivo) async {
+    final corpo = await _post(
+      '/api/importacao/analisar',
+      {'arquivo_base64': base64Encode(arquivo)},
+      const Duration(seconds: 30),
+    ) as Map<String, dynamic>;
+    return (corpo['transacoes'] as List).map((e) => TransacaoExtrato.fromJson(e)).toList();
+  }
+
+  /// Devolve quantas transações foram de fato importadas.
+  static Future<int> confirmarImportacao(List<TransacaoExtrato> transacoes) async {
+    final corpo = await _post(
+      '/api/importacao/confirmar',
+      {'transacoes': transacoes.map((t) => t.toJson()).toList()},
+      const Duration(seconds: 30),
+    ) as Map<String, dynamic>;
+    return (corpo['importadas'] ?? 0) as int;
   }
 
   // ─── Recorrências: receitas e despesas lançadas automaticamente ─────────────
