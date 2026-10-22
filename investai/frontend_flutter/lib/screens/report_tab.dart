@@ -613,6 +613,13 @@ class _ItemMovimentacao extends StatelessWidget {
     required this.onExcluir,
   });
 
+  /// 'AAAA-MM-DD' (como vem da API) para 'DD/MM/AAAA'.
+  String get _dataBr {
+    final data = DateTime.tryParse(m.data);
+    if (data == null) return m.data;
+    return '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final cor = m.isRenda ? InvestAITheme.verde : InvestAITheme.vermelho;
@@ -655,14 +662,17 @@ class _ItemMovimentacao extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(m.descricao,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                             fontSize: 14, fontWeight: FontWeight.w600, color: InvestAITheme.texto)),
                     const SizedBox(height: 2),
-                    Text('${Categorias.rotulo(m.categoria)} · ${m.data}',
+                    Text('${Categorias.rotulo(m.categoria)} · $_dataBr',
                         style: GoogleFonts.inter(fontSize: 11, color: InvestAITheme.cinza)),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Text('${m.isRenda ? '+' : '-'} ${reais(m.valor)}',
                   style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: cor)),
             ],

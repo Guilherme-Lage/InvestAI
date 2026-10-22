@@ -312,7 +312,9 @@ class _ReservaEmergenciaCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               liberado
-                  ? 'Reserva completa! Sugestões de investimento liberadas na aba Investir.'
+                  // Sem prometer "liberadas": com o saldo negativo o guia ainda
+                  // segura as sugestões (RF16), e a aba Investir explica o motivo.
+                  ? 'Reserva completa! Veja o próximo passo na aba Investir.'
                   : ideal <= 0
                       ? 'Ainda não dá pra calcular sua meta ideal: registre ao menos uma despesa (aba Relatório) para calcularmos 3x sua despesa média mensal.'
                       : 'Faltam ${reais((ideal - guardado).clamp(0, double.infinity))} para liberar sugestões de investimento (RF15).',
