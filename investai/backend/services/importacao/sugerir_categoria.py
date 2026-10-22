@@ -10,16 +10,16 @@ PALAVRAS_POR_CATEGORIA = {
         "RESTAURANTE", "LANCHONETE", "PIZZARIA", "IFOOD", "BURGER",
     ],
     "transporte": [
-        "UBER", "99APP", "99 TAXI", "99POP", "POSTO", "COMBUSTIVEL",
+        "UBER", "99APP", "99 TAXI", "99POP", "99* POP", "99 POP", "POSTO", "COMBUSTIVEL",
         "ESTACIONAMENTO", "PEDAGIO", "METRO", "ONIBUS",
     ],
     "saude": [
-        "FARMACIA", "DROGARIA", "DROGASIL", "HOSPITAL", "CLINICA",
+        "FARMACIA", "DROGARIA", "DROGASIL", "RD SAUDE", "HOSPITAL", "CLINICA",
         "LABORATORIO", "UNIMED", "DENTISTA",
     ],
     "lazer": [
         "NETFLIX", "SPOTIFY", "CINEMA", "STEAM", "PRIME VIDEO", "DISNEY",
-        "INGRESSO", "BAR",
+        "INGRESSO", "PLAYSTATION", "XBOX", "NINTENDO", "BAR",
     ],
     "contas_fixas": [
         "ALUGUEL", "CONDOMINIO", "ENERGIA", "CEMIG", "ENEL", "COPASA",

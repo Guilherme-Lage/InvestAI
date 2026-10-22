@@ -80,6 +80,21 @@ class MovimentacaoRepository:
         return [{"categoria": linha["categoria"], "total": float(linha["total"])} for linha in linhas]
 
     @staticmethod
+    def descricoes_categorizadas(usuario_id):
+        """Descrição, tipo e categoria de tudo o que o usuário já tem fora
+        de 'outros', da mais antiga para a mais recente. A importação de
+        extrato usa isso para repetir a categoria que a pessoa já deu a
+        uma transação de mesmo nome."""
+        sql = text("""
+            SELECT descricao, tipo, categoria
+            FROM movimentacao
+            WHERE usuario_id = :usuario_id AND categoria <> 'outros'
+            ORDER BY data ASC, id ASC
+        """)
+        linhas = db.session.execute(sql, {"usuario_id": usuario_id}).mappings().all()
+        return [dict(linha) for linha in linhas]
+
+    @staticmethod
     def ultima_data_movimentacao(usuario_id, tipo=None):
         """Data (string 'AAAA-MM-DD') da movimentação mais recente do
         usuário. Base do alerta de inatividade (RF12)."""
