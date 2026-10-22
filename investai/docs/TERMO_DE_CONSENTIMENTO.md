@@ -27,7 +27,7 @@ vinculado à finalidade que o justifica:
 |---|---|
 | Nome | Identificar o titular na interface e personalizar as orientações |
 | E-mail | Identificador único de acesso à conta (login) |
-| Senha | Autenticação. **Armazenada exclusivamente como hash** (função `pbkdf2:sha256`, biblioteca Werkzeug); a senha em texto não é gravada e não pode ser recuperada pelo projeto |
+| Senha | Autenticação. **Armazenada exclusivamente como hash** (algoritmo `scrypt`, biblioteca Werkzeug); a senha em texto não é gravada e não pode ser recuperada pelo projeto |
 | Renda mensal declarada | Calcular capacidade de economia (RF08) e dimensionar as orientações |
 | Despesas estimadas no cadastro (total e parcela fixa) | Calcular a meta de reserva de emergência antes de existir histórico (RF14/RF15) e orientar o guia financeiro (RF16) |
 | Receitas e despesas registradas (valor, data, descrição, categoria) | Saldo em tempo real (RF05), relatório mensal (RF10), gráfico por categoria (RF11), alertas (RF12/RF13) e histórico (RF19) |
@@ -45,8 +45,9 @@ vinculado à finalidade que o justifica:
 arquivo no próprio banco e o envia ao aplicativo. O InvestAI **não se conecta ao banco**
 nem solicita senha, token ou qualquer credencial bancária. O arquivo é lido para extrair
 as transações e **não é armazenado**; ficam gravadas apenas as transações que o titular
-confirmar após revisá-las, além do código que as identifica no extrato. Números de
-agência e conta presentes no arquivo são usados somente para compor esse código.
+confirmar após revisá-las, além do código que as identifica no extrato. Os números do
+banco e da conta presentes no arquivo ficam gravados apenas como parte desse código, para
+distinguir transações de contas diferentes.
 
 **Dados sensíveis:** o InvestAI **não solicita** dados sensíveis na acepção do art. 5º,
 II, da LGPD (origem racial, convicção religiosa, opinião política, dado de saúde, dado
@@ -95,8 +96,10 @@ digitada pelo titular, um resumo da sua situação financeira, composto por:
 - saldo atual;
 - capacidade de economia mensal;
 - total de gastos agrupados por categoria;
-- situação da reserva de emergência (valor guardado, meta e se está completa);
-- score financeiro;
+- despesa média mensal;
+- situação da reserva de emergência (valor guardado, valor ideal, título e prazo da meta de
+  reserva e se está completa);
+- score financeiro e a pontuação de cada critério que o compõe;
 - um identificador numérico interno da conta, usado para manter o histórico da conversa.
 
 **Não são transmitidos:** e-mail, senha (nem seu hash), descrições individuais de
@@ -140,14 +143,19 @@ governança em privacidade das normas ISO/IEC 27001, ISO/IEC 27701 e ISO/IEC 291
 
 - Armazenamento da senha exclusivamente como hash criptográfico, sem possibilidade de
   reversão pelo projeto;
+- Exigência de senha com no mínimo 6 caracteres, contendo letra, número e caractere
+  especial;
 - Autenticação por token de sessão (JWT) com prazo de expiração;
 - Invalidação de sessão no logout, por meio de lista de tokens revogados, impedindo o
   reuso do token após a saída;
 - Controle de acesso por titular: toda requisição a dados financeiros exige sessão válida,
   e o sistema verifica se o registro solicitado pertence ao titular autenticado, negando
   acesso a dados de outras contas;
-- Exclusão em cascata: ao excluir a conta, são apagadas também as movimentações, metas,
-  investimentos e limites de categoria vinculados.
+- Exclusão em cascata: ao excluir a conta, são apagados também todos os dados vinculados a
+  ela — movimentações, metas, investimentos, limites de categoria, recorrências,
+  transações importadas de extrato, histórico do score e registro de sessões encerradas.
+  A exclusão pode ser feita pelo próprio titular no aplicativo, mediante confirmação da
+  senha.
 
 **Limitações conhecidas, declaradas por transparência:**
 
@@ -173,7 +181,7 @@ O titular poderá, a qualquer momento:
 
 - **Revogar o consentimento** (art. 8º, § 5º, da LGPD);
 - **Solicitar a exclusão** de seus dados pessoais — disponível diretamente no aplicativo,
-  pela opção de excluir conta, na aba Perfil;
+  pela opção "Excluir conta", na aba Perfil, com confirmação da senha;
 - **Acessar, corrigir ou atualizar** seus dados — as informações de perfil, movimentações,
   metas e investimentos podem ser editadas ou removidas pelo próprio titular no aplicativo;
 - Confirmar a existência de tratamento e obter acesso aos dados (art. 18, I e II);

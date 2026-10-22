@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../theme.dart';
 import '../utils/formato_moeda.dart';
 import '../widgets/glossario.dart';
+import '../widgets/robo_assistente.dart';
 import 'chat_ia_screen.dart';
 
 /// RF06 - criar metas; RF07 - acompanhar progresso; RF14/RF15 - reserva
@@ -764,7 +765,7 @@ class _OndeGuardarReservaState extends State<_OndeGuardarReserva> {
                         'minha reserva lá.',
                   ),
                 )),
-                icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                icon: const RoboAssistente(tamanho: 18),
                 label: const Text('Me explica isso'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: InvestAITheme.verde,

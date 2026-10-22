@@ -128,8 +128,17 @@ class _ReportTabState extends State<ReportTab> {
   }
 
   Future<void> _remover(Movimentacao m) async {
+    // Sai da lista na hora: o item já foi arrastado para fora da tela, e o
+    // Flutter não aceita que ele continue ali até a resposta do servidor.
+    // Se a exclusão falhar, o _carregar() abaixo traz o item de volta.
+    setState(() => _itens.removeWhere((item) => item.id == m.id));
     try {
       await ApiService.deletarMovimentacao(m.id!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('"${m.descricao}" foi excluído.')),
+        );
+      }
       _carregar();
     } catch (e) {
       if (!mounted) return;
@@ -626,6 +635,7 @@ class _ItemMovimentacao extends StatelessWidget {
     return Dismissible(
       key: ValueKey(m.id),
       direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => confirmarExclusao(context, m),
       onDismissed: (_) => onExcluir(),
       background: Container(
         alignment: Alignment.centerRight,
@@ -725,6 +735,26 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
   }
 
   List<String> get _categorias => _tipo == 'renda' ? Categorias.receita : Categorias.despesa;
+
+  Future<void> _excluir() async {
+    final existente = widget.existente!;
+    if (!await confirmarExclusao(context, existente)) return;
+    setState(() {
+      _salvando = true;
+      _erro = null;
+    });
+    try {
+      await ApiService.deletarMovimentacao(existente.id!);
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = '$e';
+        _salvando = false;
+      });
+    }
+  }
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
@@ -931,6 +961,15 @@ class _FormularioMovimentacaoState extends State<_FormularioMovimentacao> {
                         child: CircularProgressIndicator(strokeWidth: 2.5, color: InvestAITheme.verdeEscuro))
                     : Text(widget.existente != null ? 'Salvar alterações' : 'Adicionar'),
               ),
+              if (widget.existente != null) ...[
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: _salvando ? null : _excluir,
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  label: const Text('Excluir lançamento'),
+                  style: TextButton.styleFrom(foregroundColor: InvestAITheme.vermelho),
+                ),
+              ],
             ],
           )),
         ),
@@ -1144,4 +1183,38 @@ class _ExportarRelatorioState extends State<_ExportarRelatorio> {
       ),
     );
   }
+}
+
+/// Pergunta antes de apagar um lançamento, mostrando qual é. Devolve
+/// `true` se a pessoa confirmou. Usada no gesto de arrastar e no botão
+/// "Excluir lançamento" da edição.
+Future<bool> confirmarExclusao(BuildContext context, Movimentacao m) async {
+  final valor = 'R\$ ${m.valor.toStringAsFixed(2).replaceAll('.', ',')}';
+  final confirmou = await showDialog<bool>(
+    context: context,
+    builder: (contexto) => AlertDialog(
+      backgroundColor: InvestAITheme.card,
+      title: Text('Excluir este lançamento?',
+          style: GoogleFonts.inter(
+              fontSize: 16, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
+      content: Text(
+        '${m.descricao} · ${m.isRenda ? '+' : '-'} $valor\n\n'
+        'O saldo e os relatórios são recalculados. Se ele veio de um extrato, '
+        'a transação pode ser importada de novo depois.',
+        style: GoogleFonts.inter(fontSize: 13, color: InvestAITheme.cinza, height: 1.4),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(contexto, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(contexto, true),
+          style: TextButton.styleFrom(foregroundColor: InvestAITheme.vermelho),
+          child: const Text('Excluir'),
+        ),
+      ],
+    ),
+  );
+  return confirmou == true;
 }
