@@ -18,7 +18,7 @@ class TesteCadastroELogin(TesteComBanco):
         dados = {
             "nome": "Maria Teste",
             "email": "maria@exemplo.com",
-            "senha": "senha123",
+            "senha": "Senha@123",
             "renda_mensal": 3000,
             "consentimento_aceito": True,
         }
@@ -29,14 +29,14 @@ class TesteCadastroELogin(TesteComBanco):
         resultado = self.criar.executar(self._dados())
 
         usuario = Usuario.buscar_por_id(resultado["usuario"]["id"])
-        self.assertNotEqual(usuario.senha_hash, "senha123")
+        self.assertNotEqual(usuario.senha_hash, "Senha@123")
         self.assertNotIn("senha", resultado["usuario"])
         self.assertNotIn("senha_hash", resultado["usuario"])
 
     def test_login_devolve_token(self):
         self.criar.executar(self._dados())
 
-        resultado = self.autenticar.executar("maria@exemplo.com", "senha123")
+        resultado = self.autenticar.executar("maria@exemplo.com", "Senha@123")
 
         self.assertIn("token", resultado)
         self.assertNotIn("senha_hash", resultado["usuario"])
@@ -55,7 +55,27 @@ class TesteCadastroELogin(TesteComBanco):
 
     def test_recusa_senha_curta(self):
         with self.assertRaises(ValueError):
-            self.criar.executar(self._dados(senha="123"))
+            self.criar.executar(self._dados(senha="a1@"))
+
+    def test_senha_precisa_de_letra_numero_e_caractere_especial(self):
+        casos = {
+            "senha@abc": "número",          # sem número
+            "123456@#": "letra",            # sem letra
+            "senha123": "caractere especial",
+            "senha 123": "caractere especial",  # espaço não conta como especial
+        }
+        for senha, falta in casos.items():
+            with self.subTest(senha=senha), self.assertRaises(ValueError) as erro:
+                self.criar.executar(self._dados(senha=senha))
+            self.assertIn(falta, str(erro.exception))
+
+    def test_aceita_senha_com_letra_numero_e_caractere_especial(self):
+        for indice, senha in enumerate(("Senha@123", "abc_123", "ção#9x", "a1-b2c3")):
+            with self.subTest(senha=senha):
+                resultado = self.criar.executar(
+                    self._dados(senha=senha, email=f"maria{indice}@exemplo.com")
+                )
+                self.assertIn("token", resultado)
 
     def test_recusa_email_invalido(self):
         with self.assertRaises(ValueError):

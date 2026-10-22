@@ -237,6 +237,14 @@ class ApiService {
 
   // ─── RF18 - atualizar perfil (perfil de investidor / renda) ─────────────────
 
+  /// Exclui a conta e todos os dados dela (direito de eliminação prometido
+  /// no termo de consentimento). Pede a senha de novo para confirmar; se
+  /// der certo, encerra a sessão local também.
+  static Future<void> excluirConta(int id, String senha) async {
+    await _delete('/api/usuarios/$id', {'senha': senha});
+    await limparSessao();
+  }
+
   static Future<Usuario> atualizarUsuario(int id, Map<String, dynamic> dados) async {
     final corpo = await _put('/api/usuarios/$id', dados);
     final usuario = Usuario.fromJson(corpo);
@@ -327,10 +335,14 @@ class ApiService {
     }
   }
 
-  static Future<dynamic> _delete(String caminho) async {
+  static Future<dynamic> _delete(String caminho, [Map<String, dynamic>? corpo]) async {
     try {
       final response = await http
-          .delete(Uri.parse('$baseUrl$caminho'), headers: await _headers())
+          .delete(
+            Uri.parse('$baseUrl$caminho'),
+            headers: await _headers(),
+            body: corpo == null ? null : jsonEncode(corpo),
+          )
           .timeout(const Duration(seconds: 10));
       return await _tratarResposta(response);
     } on ApiException {
@@ -431,20 +443,31 @@ class ApiService {
   // Em dois passos: analisar devolve as transações para revisão, sem
   // gravar nada; confirmar grava as que o usuário deixou marcadas.
 
-  static Future<List<TransacaoExtrato>> analisarExtrato(Uint8List arquivo) async {
+  static Future<AnaliseExtrato> analisarExtrato(Uint8List arquivo) async {
     final corpo = await _post(
       '/api/importacao/analisar',
       {'arquivo_base64': base64Encode(arquivo)},
       const Duration(seconds: 30),
     ) as Map<String, dynamic>;
-    return (corpo['transacoes'] as List).map((e) => TransacaoExtrato.fromJson(e)).toList();
+    final ajuste = corpo['ajuste_saldo'];
+    return AnaliseExtrato(
+      transacoes: (corpo['transacoes'] as List).map((e) => TransacaoExtrato.fromJson(e)).toList(),
+      ajuste: ajuste == null ? null : AjusteSaldo.fromJson(ajuste),
+    );
   }
 
-  /// Devolve quantas transações foram de fato importadas.
-  static Future<int> confirmarImportacao(List<TransacaoExtrato> transacoes) async {
+  /// Devolve quantas transações foram de fato importadas. [ajuste] é o
+  /// lançamento de ajuste de saldo, já com o valor calculado na revisão.
+  static Future<int> confirmarImportacao(List<TransacaoExtrato> transacoes,
+      {Map<String, dynamic>? ajuste}) async {
     final corpo = await _post(
       '/api/importacao/confirmar',
-      {'transacoes': transacoes.map((t) => t.toJson()).toList()},
+      {
+        'transacoes': [
+          ...transacoes.map((t) => t.toJson()),
+          if (ajuste != null) ajuste,
+        ],
+      },
       const Duration(seconds: 30),
     ) as Map<String, dynamic>;
     return (corpo['importadas'] ?? 0) as int;

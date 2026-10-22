@@ -30,6 +30,7 @@ class ImportarExtratoScreen extends StatefulWidget {
 class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
   /// `null` enquanto nenhum extrato foi lido.
   List<TransacaoExtrato>? _transacoes;
+  AjusteSaldo? _ajuste;
   String? _nomeArquivo;
   bool _ocupado = false; // lendo o arquivo ou gravando a importação
   String? _erro;
@@ -42,6 +43,16 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
       _paraRevisar.where((t) => t.selecionada).toList();
 
   int get _jaImportadas => (_transacoes ?? []).where((t) => t.jaImportada).length;
+
+  /// Valor do ajuste com a seleção de agora (muda a cada linha marcada).
+  double get _valorAjuste => _ajuste?.valorPara(_selecionadas) ?? 0;
+
+  /// O ajuste só aparece quando o saldo do app não bateria com o do banco.
+  bool get _mostrarAjuste => _ajuste != null && _valorAjuste.abs() >= 0.01;
+
+  bool get _enviarAjuste => _mostrarAjuste && _ajuste!.marcado;
+
+  int get _quantidadeParaImportar => _selecionadas.length + (_enviarAjuste ? 1 : 0);
 
   /// Marcadas para importar que ainda estão sem categoria definida.
   int get _semCategoria => _selecionadas.where((t) => t.categoria == 'outros').length;
@@ -77,10 +88,11 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
 
     setState(() => _ocupado = true);
     try {
-      final transacoes = await ApiService.analisarExtrato(arquivo.bytes);
+      final analise = await ApiService.analisarExtrato(arquivo.bytes);
       if (!mounted) return;
       setState(() {
-        _transacoes = transacoes;
+        _transacoes = analise.transacoes;
+        _ajuste = analise.ajuste;
         _nomeArquivo = arquivo!.nome;
         _ocupado = false;
       });
@@ -99,7 +111,10 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
       _erro = null;
     });
     try {
-      final importadas = await ApiService.confirmarImportacao(_selecionadas);
+      final importadas = await ApiService.confirmarImportacao(
+        _selecionadas,
+        ajuste: _enviarAjuste ? _ajuste!.toJson(_valorAjuste) : null,
+      );
       if (!mounted) return;
       Navigator.pop(
         context,
@@ -180,6 +195,7 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
 
   Widget _construirRevisao() {
     final paraRevisar = _paraRevisar;
+    final nadaNovo = paraRevisar.isEmpty && !_mostrarAjuste;
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       children: [
@@ -188,15 +204,13 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
             overflow: TextOverflow.ellipsis),
         const SizedBox(height: 4),
         Text(
-          paraRevisar.isEmpty
-              ? 'Nada novo neste extrato'
-              : 'Confira antes de importar',
+          nadaNovo ? 'Nada novo neste extrato' : 'Confira antes de importar',
           style: GoogleFonts.inter(
               fontSize: 18, fontWeight: FontWeight.w700, color: InvestAITheme.texto),
         ),
         const SizedBox(height: 6),
         Text(
-          paraRevisar.isEmpty
+          nadaNovo
               ? 'Todas as transações deste arquivo já foram importadas antes.'
               : 'Desmarque o que não quiser e toque na categoria para trocar.',
           style: GoogleFonts.inter(fontSize: 12.5, color: InvestAITheme.cinza, height: 1.4),
@@ -215,6 +229,14 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
           _AvisoSemCategoria(quantidade: _semCategoria),
         ],
         const SizedBox(height: 16),
+        if (_mostrarAjuste)
+          _CartaoAjuste(
+            ajuste: _ajuste!,
+            valor: _valorAjuste,
+            reais: _reais,
+            habilitado: !_ocupado,
+            onMarcar: (marcado) => setState(() => _ajuste!.marcado = marcado),
+          ),
         for (final transacao in paraRevisar)
           _ItemRevisao(
             transacao: transacao,
@@ -228,7 +250,7 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
   }
 
   Widget _construirRodape() {
-    final quantidade = _selecionadas.length;
+    final quantidade = _quantidadeParaImportar;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
@@ -446,6 +468,101 @@ class _ItemRevisao extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// O ajuste de saldo, no topo da revisão. O valor muda conforme as linhas
+/// marcadas, para o saldo do app terminar igual ao que o banco informa.
+class _CartaoAjuste extends StatelessWidget {
+  final AjusteSaldo ajuste;
+  final double valor;
+  final String Function(num) reais;
+  final bool habilitado;
+  final ValueChanged<bool> onMarcar;
+
+  const _CartaoAjuste({
+    required this.ajuste,
+    required this.valor,
+    required this.reais,
+    required this.habilitado,
+    required this.onMarcar,
+  });
+
+  String _dataBr(String iso) {
+    final data = DateTime.tryParse(iso);
+    if (data == null) return iso;
+    return '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entrada = valor > 0;
+    // Na primeira importação é o passo normal (verde); nas seguintes, a
+    // diferença é um sinal de que algo não bate (amarelo).
+    final cor = ajuste.primeiraImportacao ? InvestAITheme.verde : InvestAITheme.amarelo;
+    final saldoBanco = '${reais(ajuste.saldoBanco)} em ${_dataBr(ajuste.dataBanco)}';
+    final explicacao = ajuste.primeiraImportacao
+        ? 'O banco informa saldo de $saldoBanco. Este ajuste inclui o dinheiro que já '
+            'estava na conta antes do extrato e o que você deixar de fora (como uma '
+            'aplicação), para o saldo do app ficar igual ao do banco. O valor muda '
+            'conforme você marca as linhas. Dinheiro aplicado, registre na aba Investir.'
+        : 'Depois desta importação, o saldo do app ficaria ${reais(valor.abs())} '
+            'diferente do banco ($saldoBanco). Pode ser algo registrado só no app ou só '
+            'no banco: confira antes. Marque só se quiser igualar ao banco.';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(4, 8, 14, 12),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cor.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Checkbox(
+            value: ajuste.marcado,
+            activeColor: InvestAITheme.verde,
+            checkColor: InvestAITheme.verdeEscuro,
+            onChanged: habilitado ? (v) => onMarcar(v ?? false) : null,
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(ajuste.descricao,
+                          style: GoogleFonts.inter(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: InvestAITheme.texto)),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('${entrada ? '+' : '-'} ${reais(valor.abs())}',
+                        style: GoogleFonts.inter(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: entrada ? InvestAITheme.verde : InvestAITheme.vermelho)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  explicacao,
+                  style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      color: ajuste.primeiraImportacao ? InvestAITheme.cinza : InvestAITheme.amarelo,
+                      height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
