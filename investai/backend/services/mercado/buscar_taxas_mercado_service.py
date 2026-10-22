@@ -2,6 +2,8 @@ import time
 
 import requests
 
+from services.mercado.reserva_em_disco import buscar_com_reserva
+
 URL_SGS = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados/ultimos/1?formato=json"
 SERIE_SELIC_META = 432   # Taxa de juros - Meta Selic definida pelo Copom (% a.a.)
 SERIE_CDI_DIARIO = 12    # Taxa de juros - CDI (% ao dia)
@@ -19,26 +21,21 @@ class BuscarTaxasMercadoService:
     sugestões de investimento do guia financeiro (RF16) com números reais."""
 
     def executar(self):
-        agora = time.time()
-        if _cache["dados"] is not None and agora < _cache["expira_em"]:
-            return _cache["dados"]
+        return buscar_com_reserva("taxas", _cache, SEGUNDOS_CACHE, self._buscar)
 
+    def _buscar(self):
         selic = self._buscar_ultimo_valor(SERIE_SELIC_META)
         cdi_diario = self._buscar_ultimo_valor(SERIE_CDI_DIARIO)
         ipca = self._buscar_ultimo_valor(SERIE_IPCA_12M)
 
         cdi_anualizado = (((1 + cdi_diario / 100) ** 252) - 1) * 100
 
-        dados = {
+        return {
             "selic": round(selic, 2),
             "cdi": round(cdi_anualizado, 2),
             "ipca": round(ipca, 2),
             "atualizado_em": time.strftime("%d/%m/%Y"),
         }
-
-        _cache["dados"] = dados
-        _cache["expira_em"] = agora + SEGUNDOS_CACHE
-        return dados
 
     def _buscar_ultimo_valor(self, codigo_serie):
         resposta = requests.get(URL_SGS.format(codigo=codigo_serie), timeout=8)

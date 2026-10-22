@@ -18,6 +18,12 @@ class TransacaoImportada(ModeloBase):
     # Identificador da transação no extrato (banco + conta + código do banco).
     identificador = db.Column(db.String(200), nullable=False)
 
+    # Lançamento que esta linha gerou. Se o usuário apagar o lançamento, a
+    # marca sai junto e a linha pode ser importada de novo - um erro na
+    # importação não fica sem conserto. Vazio nas marcas gravadas antes
+    # desta coluna existir.
+    movimentacao_id = db.Column(db.Integer, db.ForeignKey("movimentacao.id"), index=True)
+
     usuario_id = db.Column(
         db.Integer, db.ForeignKey("usuario.id"), nullable=False
     )

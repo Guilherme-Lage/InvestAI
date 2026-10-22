@@ -6,6 +6,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 from models import db
+from models.migracoes import acrescentar_colunas_faltantes
 from controllers import (
     usuario_bp,
     movimentacao_bp,
@@ -78,6 +79,7 @@ def criar_app(config=None):
 
     with app.app_context():
         db.create_all()
+        acrescentar_colunas_faltantes(db)
 
     # Evita rodar em duplicidade: o reloader do Flask (debug=True) sobe um
     # processo "monitor" e um processo "worker" - só o worker de fato serve

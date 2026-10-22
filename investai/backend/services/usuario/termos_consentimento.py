@@ -55,7 +55,8 @@ ITENS = [
     {
         "titulo": "Seus dados são seus",
         "texto": "Você pode excluir sua conta a qualquer momento pelo "
-                 "Perfil. Ao excluir, apagamos também suas movimentações, "
+                 "Perfil, confirmando sua senha. Ao excluir, apagamos também "
+                 "todos os dados dela, como movimentações, "
                  "metas e investimentos.",
     },
 ]

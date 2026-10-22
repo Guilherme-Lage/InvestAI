@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../conteudo/licoes.dart';
 import '../models/investimento.dart';
 import '../services/api_service.dart';
+import '../services/progresso_licoes.dart';
 import '../theme.dart';
 import '../utils/formato_moeda.dart';
 import '../widgets/glossario.dart';
+import '../widgets/robo_assistente.dart';
 import 'chat_ia_screen.dart';
+import 'trilha_aprendizado_screen.dart';
 
 /// Investimentos cadastrados pelo usuário + sugestões de investimento
 /// (RF16), liberadas apenas depois da reserva de emergência completa
@@ -28,6 +32,7 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
   Map<String, dynamic>? _taxas;
   Map<String, dynamic>? _tesouro;
   Map<String, dynamic>? _comparacao;
+  Set<String> _licoesConcluidas = {};
 
   @override
   void initState() {
@@ -36,6 +41,7 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
   }
 
   Future<void> _carregar() async {
+    _carregarProgressoLicoes();
     setState(() {
       _carregando = true;
       _erro = null;
@@ -103,6 +109,19 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
   }
 
   String _reais(num valor) => 'R\$ ${valor.toStringAsFixed(2).replaceAll('.', ',')}';
+
+  Future<void> _carregarProgressoLicoes() async {
+    final concluidas = await ProgressoLicoes.concluidas();
+    if (!mounted) return;
+    setState(() => _licoesConcluidas = concluidas);
+  }
+
+  Future<void> _abrirTrilha() async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => TrilhaAprendizadoScreen(contexto: ContextoLicao.dosDados(_guia, _taxas)),
+    ));
+    _carregarProgressoLicoes();
+  }
 
   Future<void> _abrirFormulario() async {
     final resultado = await showModalBottomSheet<bool>(
@@ -181,6 +200,12 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
 
                       // 2. Onde ele está na jornada e qual é o próximo passo.
                       _SecaoSugestoes(guia: _guia, reais: _reais),
+                      const SizedBox(height: 12),
+                      _CartaoAprendizado(
+                        contexto: ContextoLicao.dosDados(_guia, _taxas),
+                        concluidas: _licoesConcluidas,
+                        onAbrir: _abrirTrilha,
+                      ),
 
                       // 3. Ferramenta e referência: ficam fechadas para não
                       // competir com o que é ação.
@@ -1216,7 +1241,7 @@ class _SugestoesPerfilState extends State<_SugestoesPerfil> {
                         'pra minha situação.',
                   ),
                 )),
-                icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                icon: const RoboAssistente(tamanho: 18),
                 label: const Text('Me explica isso'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: InvestAITheme.verde,
@@ -1640,6 +1665,84 @@ class _FormularioInvestimentoState extends State<_FormularioInvestimento> {
                     : const Text('Adicionar'),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Entrada da trilha "Aprenda a investir": progresso e a próxima lição.
+/// Fica logo abaixo da trilha de investimento, porque é ela que prepara a
+/// pessoa para cada passo antes de chegar nele.
+class _CartaoAprendizado extends StatelessWidget {
+  final ContextoLicao contexto;
+  final Set<String> concluidas;
+  final VoidCallback onAbrir;
+
+  const _CartaoAprendizado({
+    required this.contexto,
+    required this.concluidas,
+    required this.onAbrir,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final feitas = licoes.where((l) => concluidas.contains(l.id)).length;
+    final proxima = licoes
+        .where((l) => contexto.libera(l.nivel) && !concluidas.contains(l.id))
+        .firstOrNull;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: InvestAITheme.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: InvestAITheme.verde.withValues(alpha: 0.35)),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onAbrir,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.school_outlined, color: InvestAITheme.verde, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Aprenda a investir',
+                          style: GoogleFonts.inter(
+                              fontSize: 14, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
+                    ),
+                    Text('$feitas de ${licoes.length}',
+                        style: GoogleFonts.inter(
+                            fontSize: 12, fontWeight: FontWeight.w600, color: InvestAITheme.verde)),
+                    const Icon(Icons.chevron_right_rounded, color: InvestAITheme.cinza, size: 20),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: feitas / licoes.length,
+                    minHeight: 5,
+                    backgroundColor: InvestAITheme.borda,
+                    valueColor: const AlwaysStoppedAnimation(InvestAITheme.verde),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  proxima != null
+                      ? 'Próxima: ${proxima.titulo}'
+                      : 'Você concluiu as lições liberadas até aqui.',
+                  style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../screens/chat_ia_screen.dart';
 import '../theme.dart';
+import 'robo_assistente.dart';
 
 /// Explicações curtas dos termos que aparecem nas telas de investimento.
 ///
@@ -185,7 +186,7 @@ class _FichaTermo extends StatelessWidget {
                   ),
                 ));
               },
-              icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+              icon: const RoboAssistente(tamanho: 18),
               label: const Text('Perguntar mais à IA'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: InvestAITheme.verde,

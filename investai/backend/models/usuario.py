@@ -47,6 +47,9 @@ class Usuario(ModeloBase):
     transacoes_importadas = db.relationship(
         "TransacaoImportada", back_populates="usuario", cascade="all, delete-orphan"
     )
+    # Só para a exclusão da conta levar junto o registro de sessões
+    # encerradas: o termo promete apagar tudo o que é do titular.
+    tokens_revogados = db.relationship("TokenRevogado", cascade="all, delete-orphan")
 
     def definir_senha(self, senha_texto_puro):
         """Gera e armazena o hash da senha. A senha em texto puro nunca
