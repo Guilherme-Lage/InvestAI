@@ -10,6 +10,7 @@ from services.auth_service import AuthService
 from services.importacao.analisar_extrato_service import AnalisarExtratoService
 from services.importacao.confirmar_importacao_service import ConfirmarImportacaoService
 from services.importacao.ler_extrato_ofx_service import LerExtratoOfxService
+from services.importacao.limpar_descricao import limpar_descricao
 from services.importacao.sugerir_categoria import (
     parece_movimentacao_interna,
     sugerir_categoria,
@@ -121,6 +122,41 @@ class TesteLeituraDoOfx(unittest.TestCase):
             self.ler.executar("<OFX></OFX>")
 
 
+class TesteLimpezaDaDescricao(unittest.TestCase):
+    """Formatos vistos em extrato real do Inter (com nomes trocados)."""
+
+    def test_tira_os_codigos_internos_do_banco(self):
+        casos = {
+            'Pix enviado: "Cp :14796606-RD SAUDE"': "Pix enviado: RD SAUDE",
+            'Pix enviado: "00019 16897471 FULANO DE TAL"': "Pix enviado: FULANO DE TAL",
+            'Pix recebido: "00001 12 34 5 6 BELTRANA SILVA"': "Pix recebido: BELTRANA SILVA",
+            'Compra no debito: "No estabelecimento 99* POP 26Set 10h15min"':
+                "Compra no debito: 99* POP",
+            'Estorno: "Estorno no estabelecimento Uber UBER *TRIP HELP.U"':
+                "Estorno: Uber UBER *TRIP HELP.U",
+        }
+        for bruta, limpa in casos.items():
+            with self.subTest(bruta=bruta):
+                self.assertEqual(limpar_descricao(bruta), limpa)
+
+    def test_nao_mexe_no_que_ja_esta_legivel(self):
+        for descricao in (
+            "COMPRA CARTAO - SUPERMERCADO BH",
+            "PIX ENVIADO - JOAO PEDRO SILVA",
+            "DEB AUT - INTERNET FIBRA",
+            "NETFLIX.COM",
+        ):
+            with self.subTest(descricao=descricao):
+                self.assertEqual(limpar_descricao(descricao), descricao)
+
+    def test_a_leitura_do_extrato_ja_entrega_a_descricao_limpa(self):
+        extrato = LerExtratoOfxService().executar(
+            _ofx(("20260305", "-41.79", 'Pix enviado: "Cp :14796606-RD SAUDE"'))
+        )
+
+        self.assertEqual(extrato["transacoes"][0]["descricao"], "Pix enviado: RD SAUDE")
+
+
 class TesteSugestaoDeCategoria(unittest.TestCase):
     def test_reconhece_palavras_comuns_do_extrato(self):
         casos = {
@@ -131,6 +167,18 @@ class TesteSugestaoDeCategoria(unittest.TestCase):
             "NETFLIX.COM": "lazer",
             "DEB AUT - INTERNET FIBRA": "contas_fixas",
             "PIX ENVIADO - JOAO PEDRO SILVA": "outros",
+        }
+        for descricao, esperada in casos.items():
+            with self.subTest(descricao=descricao):
+                self.assertEqual(sugerir_categoria(descricao, "gasto"), esperada)
+
+    def test_reconhece_o_jeito_do_inter_de_escrever(self):
+        casos = {
+            "Compra no debito: 99* POP": "transporte",
+            "Compra no debito: Uber UBER *TRIP HELP.U": "transporte",
+            "Pix enviado: RD SAUDE": "saude",
+            "Compra de Giftcard: abc/Sony PlayStation": "lazer",
+            "Pix enviado: AUTO ESCOLA ESPERANCA": "educacao",
         }
         for descricao, esperada in casos.items():
             with self.subTest(descricao=descricao):
@@ -286,6 +334,78 @@ class TesteImportacao(TesteComBanco):
         ))
 
         self.assertEqual(set(situacoes.values()), {"movimentacao_interna"})
+
+    def test_repete_a_categoria_que_o_usuario_ja_deu_ao_mesmo_nome(self):
+        """Pix para uma pessoa não tem como ser adivinhado; mas, depois que
+        o usuário diz uma vez que é alimentação, o app não pergunta de novo."""
+        primeira = self._novas(_ofx(("20260305", "-30.00", 'Pix enviado: "Cp :111-FULANO DE TAL"')))
+        self.assertEqual(primeira[0]["categoria"], "outros")
+        primeira[0]["categoria"] = "alimentacao"
+        self.confirmar.executar(self.usuario.id, primeira)
+
+        seguinte = self.analisar.executar(self.usuario.id, _ofx(
+            # Mesmo nome, outro código de comprovante e outra capitalização.
+            ("20260320", "-45.00", 'Pix enviado: "Cp :222-Fulano de Tal"', "novo1"),
+            ("20260321", "100.00", 'Pix recebido: "Cp :333-FULANO DE TAL"', "novo2"),
+            ("20260322", "-10.00", 'Pix enviado: "Cp :444-OUTRA PESSOA"', "novo3"),
+        ))
+
+        categorias = [t["categoria"] for t in seguinte["transacoes"]]
+        # O recebido do mesmo nome não herda: é outro tipo de transação.
+        self.assertEqual(categorias, ["alimentacao", "outros", "outros"])
+
+    def test_aprende_tambem_com_descricao_gravada_antes_da_limpeza(self):
+        Movimentacao(
+            descricao='Pix enviado: "Cp :111-FULANO DE TAL"', tipo="gasto", valor=30.0,
+            data="2026-01-05", categoria="lazer", usuario_id=self.usuario.id,
+        ).salvar()
+
+        novas = self._novas(_ofx(("20260305", "-45.00", 'Pix enviado: "Cp :999-FULANO DE TAL"')))
+
+        self.assertEqual(novas[0]["categoria"], "lazer")
+
+    def test_escolha_mais_recente_do_usuario_e_a_que_vale(self):
+        for data, categoria in (("2026-01-05", "lazer"), ("2026-02-05", "alimentacao")):
+            Movimentacao(
+                descricao="Pix enviado: FULANO DE TAL", tipo="gasto", valor=30.0,
+                data=data, categoria=categoria, usuario_id=self.usuario.id,
+            ).salvar()
+
+        novas = self._novas(_ofx(("20260305", "-45.00", 'Pix enviado: "Cp :999-FULANO DE TAL"')))
+
+        self.assertEqual(novas[0]["categoria"], "alimentacao")
+
+    def test_categoria_aprendida_de_um_usuario_nao_vale_para_outro(self):
+        Movimentacao(
+            descricao="Pix enviado: FULANO DE TAL", tipo="gasto", valor=30.0,
+            data="2026-01-05", categoria="lazer", usuario_id=self.criar_usuario().id,
+        ).salvar()
+
+        novas = self._novas(_ofx(("20260305", "-45.00", "Pix enviado: FULANO DE TAL")))
+
+        self.assertEqual(novas[0]["categoria"], "outros")
+
+    def test_pix_com_o_nome_do_proprio_usuario_e_transferencia_entre_contas(self):
+        usuario = self.criar_usuario(nome="Maria Souza Lima")
+
+        analise = self.analisar.executar(usuario.id, _ofx(
+            ("20260305", "150.00", 'Pix recebido: "Cp :111-Maria Souza Lima"'),
+            ("20260306", "80.00", 'Pix recebido: "Cp :222-Maria Souza Pereira"'),
+        ))
+
+        propria, outra = analise["transacoes"]
+        self.assertEqual(propria["situacao"], "movimentacao_interna")
+        self.assertIn("contas suas", propria["aviso"])
+        self.assertEqual(outra["situacao"], "nova")
+
+    def test_nome_de_uma_palavra_so_nao_e_usado_para_reconhecer_transferencia(self):
+        usuario = self.criar_usuario(nome="Maria")
+
+        situacoes = self._situacoes(
+            _ofx(("20260305", "150.00", "Pix recebido: Maria Souza Lima")), usuario=usuario
+        )
+
+        self.assertEqual(situacoes, {"Pix recebido: Maria Souza Lima": "nova"})
 
     def test_extrato_de_exemplo_na_conta_demo_aponta_as_recorrencias(self):
         """O cenário da apresentação: a conta demo já tem salário, aluguel,

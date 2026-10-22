@@ -750,7 +750,7 @@
  ],
  "/api/usuarios/me": {
   "consentimento_aceito": true,
-  "consentimento_em": "2026-10-13T11:27:23.538675",
+  "consentimento_em": "2026-10-13T22:04:56.709091",
   "consentimento_versao": "1.1",
   "despesa_fixa_estimada": 1660.0,
   "despesa_mensal_estimada": 3500.0,

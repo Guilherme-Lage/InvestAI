@@ -1056,9 +1056,9 @@ class _MercadoAgora extends StatelessWidget {
   }
 }
 
-/// RF14/RF15/RF16 - trilha de investimento: a reserva de emergência é o
-/// primeiro passo obrigatório antes de liberar as sugestões personalizadas
-/// (RF18) para o perfil de investidor do usuário.
+/// RF14/RF15/RF16 - trilha de investimento, na mesma ordem do guia
+/// financeiro: saldo no positivo, depois a reserva de emergência, e só
+/// então as sugestões personalizadas (RF18) para o perfil do usuário.
 class _SecaoSugestoes extends StatelessWidget {
   final Map<String, dynamic>? guia;
   final String Function(num) reais;
@@ -1067,7 +1067,11 @@ class _SecaoSugestoes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final liberado = guia?['passo'] == 'pronto_para_investir';
+    final saldoNegativo = guia?['passo'] == 'saldo_negativo';
     final reserva = guia?['reserva'] as Map<String, dynamic>?;
+    // A reserva pode estar completa mesmo com as sugestões bloqueadas: o
+    // saldo negativo vem antes dela no guia.
+    final reservaCompleta = reserva?['sugestoes_investimento_liberadas'] == true;
     final sugestoes = (guia?['sugestoes_investimento'] as List?) ?? [];
 
     return Column(
@@ -1078,9 +1082,16 @@ class _SecaoSugestoes extends StatelessWidget {
         const SizedBox(height: 12),
 
         _PassoTrilha(
-          concluido: liberado,
+          concluido: !saldoNegativo,
+          titulo: 'Saldo no positivo',
+          subtitulo: saldoNegativo
+              ? 'Saldo atual: ${reais(guia?['saldo'] ?? 0)}'
+              : 'Suas receitas cobrem seus gastos',
+        ),
+        _PassoTrilha(
+          concluido: reservaCompleta,
           titulo: 'Reserva de emergência',
-          subtitulo: liberado
+          subtitulo: reservaCompleta
               ? 'Concluída'
               : reserva == null || ((reserva['valor_ideal_reserva'] ?? 0) as num) <= 0
                   ? 'Registre uma despesa (aba Relatório) para calcularmos sua meta'
@@ -1091,7 +1102,7 @@ class _SecaoSugestoes extends StatelessWidget {
           titulo: 'Sugestões personalizadas',
           subtitulo: liberado
               ? 'Liberadas para o seu perfil'
-              : 'Libera automaticamente ao completar a reserva (RF15)',
+              : 'Libera automaticamente quando os passos acima estiverem concluídos (RF15)',
         ),
         const SizedBox(height: 8),
 
@@ -1110,7 +1121,12 @@ class _SecaoSugestoes extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Continue guardando na sua reserva de emergência (aba Metas) para desbloquear as sugestões.',
+                    saldoNegativo
+                        ? 'Seu saldo no app está negativo: os gastos registrados passam das '
+                            'receitas. Antes de investir, as contas precisam fechar no positivo. '
+                            'Se você importou um extrato, pode faltar o dinheiro que já estava na '
+                            'conta antes do período: registre-o como receita (ex.: "Saldo inicial").'
+                        : 'Continue guardando na sua reserva de emergência (aba Metas) para desbloquear as sugestões.',
                     style: GoogleFonts.inter(fontSize: 12.5, color: InvestAITheme.cinza, height: 1.4),
                   ),
                 ),

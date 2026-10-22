@@ -43,6 +43,23 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
 
   int get _jaImportadas => (_transacoes ?? []).where((t) => t.jaImportada).length;
 
+  /// Marcadas para importar que ainda estão sem categoria definida.
+  int get _semCategoria => _selecionadas.where((t) => t.categoria == 'outros').length;
+
+  /// Troca a categoria de uma linha e de todas as outras de mesmo nome.
+  ///
+  /// Extrato costuma repetir o mesmo favorecido várias vezes (a mesma
+  /// padaria, o mesmo Pix); sem isso a pessoa teria de corrigir uma a uma.
+  void _trocarCategoria(TransacaoExtrato alterada, String categoria) {
+    setState(() {
+      for (final transacao in _paraRevisar) {
+        if (transacao.descricao == alterada.descricao && transacao.tipo == alterada.tipo) {
+          transacao.categoria = categoria;
+        }
+      }
+    });
+  }
+
   String _reais(num valor) => 'R\$ ${valor.toStringAsFixed(2).replaceAll('.', ',')}';
 
   Future<void> _escolherEAnalisar() async {
@@ -193,6 +210,10 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
             style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza),
           ),
         ],
+        if (_semCategoria > 0) ...[
+          const SizedBox(height: 12),
+          _AvisoSemCategoria(quantidade: _semCategoria),
+        ],
         const SizedBox(height: 16),
         for (final transacao in paraRevisar)
           _ItemRevisao(
@@ -200,7 +221,7 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
             reais: _reais,
             habilitado: !_ocupado,
             onMarcar: (marcada) => setState(() => transacao.selecionada = marcada),
-            onCategoria: (categoria) => setState(() => transacao.categoria = categoria),
+            onCategoria: (categoria) => _trocarCategoria(transacao, categoria),
           ),
       ],
     );
@@ -234,6 +255,43 @@ class _ImportarExtratoScreenState extends State<ImportarExtratoScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Chama a atenção para o que vai entrar como "Outros". O app só reconhece
+/// a categoria por palavras conhecidas; Pix para uma pessoa, por exemplo,
+/// só o próprio usuário sabe do que se trata.
+class _AvisoSemCategoria extends StatelessWidget {
+  final int quantidade;
+  const _AvisoSemCategoria({required this.quantidade});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: InvestAITheme.amarelo.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: InvestAITheme.amarelo.withOpacity(0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.label_off_outlined, color: InvestAITheme.amarelo, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              (quantidade == 1
+                      ? '1 transação está sem categoria ("Outros"). '
+                      : '$quantidade transações estão sem categoria ("Outros"). ') +
+                  'Toque na categoria para definir: as de mesmo nome mudam juntas, '
+                  'e o app lembra da sua escolha nas próximas importações.',
+              style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.amarelo, height: 1.35),
+            ),
+          ),
+        ],
       ),
     );
   }

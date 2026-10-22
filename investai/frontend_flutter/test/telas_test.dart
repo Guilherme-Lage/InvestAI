@@ -235,6 +235,32 @@ void main() {
   });
 
   group('Investir', () {
+    testeDeTela('reserva completa com saldo negativo explica por que segue bloqueado',
+        (tester, api) async {
+      // Aconteceu de verdade: extrato importado sem o saldo anterior deixou
+      // o saldo negativo, e a tela pedia para "continuar guardando" numa
+      // reserva que já estava completa.
+      final guia = Map<String, dynamic>.from(api.resposta('/api/orientacao/guia'));
+      api.responder('/api/orientacao/guia', {
+        ...guia,
+        'passo': 'saldo_negativo',
+        'saldo': -823.75,
+        'reserva': {
+          ...(guia['reserva'] as Map<String, dynamic>),
+          'valor_guardado': 4000.0,
+          'valor_ideal_reserva': 3743.74,
+          'sugestoes_investimento_liberadas': true,
+        },
+      });
+      await montarTela(tester, api, const InvestimentosTab());
+
+      expect(find.text('Saldo no positivo'), findsOneWidget);
+      expect(find.text('Saldo atual: R\$ -823,75'), findsOneWidget);
+      expect(find.text('Concluída'), findsOneWidget); // a reserva
+      expect(find.textContaining('saldo no app está negativo'), findsOneWidget);
+      expect(find.textContaining('Continue guardando'), findsNothing);
+    });
+
     testeDeTela('o score mostra a evolução quando há histórico', (tester, api) async {
       await montarTela(tester, api, const InvestimentosTab());
 
