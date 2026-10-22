@@ -9,3 +9,6 @@ venv/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Arquivo temporário que o Word/LibreOffice cria enquanto um documento está aberto
+.~lock.*

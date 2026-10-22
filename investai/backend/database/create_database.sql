@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS score_historico (
 CREATE TABLE IF NOT EXISTS transacao_importada (
     id                INT AUTO_INCREMENT PRIMARY KEY,
     identificador     VARCHAR(200)  NOT NULL,  -- banco + conta + código da transação no banco
+    movimentacao_id   INT,                     -- lançamento gerado; apagá-lo libera a linha
     usuario_id        INT           NOT NULL,
     data_criacao      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP

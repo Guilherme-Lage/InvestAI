@@ -47,10 +47,28 @@ class LerExtratoOfxService:
 
         transacoes.sort(key=lambda t: t["data"])
         return {
+            "saldo_final": self._saldo_final(texto),
             "banco": banco,
             "conta": conta,
             "transacoes": transacoes,
         }
+
+    def _saldo_final(self, texto):
+        """Saldo da conta informado pelo banco no fim do extrato, no bloco
+        LEDGERBAL (valor em BALAMT, data em DTASOF). Nem todo banco manda;
+        sem ele, devolve None."""
+        bloco = re.search(
+            r"<LEDGERBAL>(.*?)(?:</LEDGERBAL>|<AVAILBAL>|</STMTRS>|</CCSTMTRS>|$)",
+            texto,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not bloco:
+            return None
+        valor = self._valor(self._campo(bloco.group(1), "BALAMT"))
+        data = self._data(self._campo(bloco.group(1), "DTASOF"))
+        if valor is None or data is None:
+            return None
+        return {"valor": round(valor, 2), "data": data.isoformat()}
 
     def _decodificar(self, conteudo):
         """Extratos antigos vêm em Windows-1252 e os novos em UTF-8. O

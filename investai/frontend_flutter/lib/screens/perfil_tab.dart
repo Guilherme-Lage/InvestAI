@@ -196,10 +196,27 @@ class _PerfilTabState extends State<PerfilTab> {
     );
   }
 
+  Future<void> _excluirConta() async {
+    final excluida = await showDialog<bool>(
+      context: context,
+      builder: (_) => _DialogoExcluirConta(usuarioId: widget.usuario.id!),
+    );
+    if (excluida != true || !mounted) return;
+
+    final mensageiro = ScaffoldMessenger.of(context);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+    mensageiro.showSnackBar(
+      const SnackBar(content: Text('Sua conta e todos os seus dados foram excluídos.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 80),
       children: [
         Text('Perfil',
             style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w800, color: InvestAITheme.texto)),
@@ -241,20 +258,8 @@ class _PerfilTabState extends State<PerfilTab> {
           onTap: _abrirLimites,
         ),
         _ItemMenu(
-          icone: Icons.lock_outline_rounded,
-          titulo: 'Segurança',
-          subtitulo: 'Em breve',
-          habilitado: false,
-        ),
-        _ItemMenu(
           icone: Icons.workspace_premium_outlined,
           titulo: 'Plano Premium',
-          subtitulo: 'Em breve',
-          habilitado: false,
-        ),
-        _ItemMenu(
-          icone: Icons.account_balance_outlined,
-          titulo: 'Corretoras conectadas',
           subtitulo: 'Em breve',
           habilitado: false,
         ),
@@ -265,6 +270,108 @@ class _PerfilTabState extends State<PerfilTab> {
           titulo: 'Sair',
           cor: InvestAITheme.vermelho,
           onTap: _sair,
+        ),
+        // Direito de eliminação dos dados (LGPD), prometido no termo de
+        // consentimento: a pessoa precisa conseguir fazer isso sozinha.
+        _ItemMenu(
+          icone: Icons.delete_forever_outlined,
+          titulo: 'Excluir conta',
+          cor: InvestAITheme.vermelho,
+          onTap: _excluirConta,
+        ),
+      ],
+    );
+  }
+}
+
+/// Confirmação da exclusão da conta. Explica o que será apagado e pede a
+/// senha de novo, porque não há como desfazer. Fecha com `true` quando a
+/// conta foi de fato excluída.
+class _DialogoExcluirConta extends StatefulWidget {
+  final int usuarioId;
+  const _DialogoExcluirConta({required this.usuarioId});
+
+  @override
+  State<_DialogoExcluirConta> createState() => _DialogoExcluirContaState();
+}
+
+class _DialogoExcluirContaState extends State<_DialogoExcluirConta> {
+  final _senhaCtrl = TextEditingController();
+  bool _excluindo = false;
+  String? _erro;
+
+  @override
+  void dispose() {
+    _senhaCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirmar() async {
+    setState(() {
+      _excluindo = true;
+      _erro = null;
+    });
+    try {
+      await ApiService.excluirConta(widget.usuarioId, _senhaCtrl.text);
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = '$e';
+        _excluindo = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: InvestAITheme.card,
+      title: Text('Excluir sua conta?',
+          style: GoogleFonts.inter(
+              fontSize: 17, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Isso apaga para sempre sua conta e todos os seus dados: movimentações, '
+              'metas, investimentos, limites, recorrências, extratos importados e '
+              'histórico do score. Não dá para desfazer.',
+              style: GoogleFonts.inter(fontSize: 13, color: InvestAITheme.cinza, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _senhaCtrl,
+              obscureText: true,
+              enabled: !_excluindo,
+              style: const TextStyle(color: InvestAITheme.texto),
+              decoration: const InputDecoration(labelText: 'Digite sua senha para confirmar'),
+              onSubmitted: (_) => _confirmar(),
+            ),
+            if (_erro != null) ...[
+              const SizedBox(height: 10),
+              Text(_erro!, style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.vermelho)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _excluindo ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: _excluindo ? null : _confirmar,
+          style: TextButton.styleFrom(foregroundColor: InvestAITheme.vermelho),
+          child: _excluindo
+              ? const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: InvestAITheme.vermelho))
+              : const Text('Excluir conta'),
         ),
       ],
     );

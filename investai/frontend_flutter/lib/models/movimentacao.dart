@@ -70,6 +70,8 @@ class Categorias {
     'freelance': 'Freelance',
     'investimentos': 'Investimentos',
     'outros': 'Outros',
+    // Lançado pela importação de extrato para o saldo bater com o do banco.
+    'saldo_inicial': 'Ajuste de saldo',
   };
 
   static String rotulo(String categoria) => rotulos[categoria] ?? categoria;

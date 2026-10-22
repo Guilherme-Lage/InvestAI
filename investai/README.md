@@ -136,6 +136,7 @@ exigem `Authorization: Bearer <token>` e operam sobre o usuário autenticado.
 | POST | `/api/usuarios/logout` | Logout seguro (revoga o token) |
 | GET | `/api/usuarios/me` | Dados do usuário autenticado |
 | PUT | `/api/usuarios/<id>` | Atualizar perfil de investidor / renda mensal (RF18) |
+| DELETE | `/api/usuarios/<id>` | Excluir a própria conta e todos os dados dela; exige `{"senha": ...}` |
 
 ### Movimentações (RF03–RF05, RF08–RF13, RF19)
 
@@ -188,8 +189,11 @@ exigem `Authorization: Bearer <token>` e operam sobre o usuário autenticado.
 Cada transação analisada volta com uma `situacao`: `nova`, `ja_importada` (veio em
 importação anterior), `possivel_duplicata` (há movimentação de mesmo valor em data
 próxima, digitada ou lançada por recorrência) ou `movimentacao_interna` (aplicação,
-resgate, fatura). Só as `nova` vêm marcadas; a decisão final é do usuário. O app não se
-conecta ao banco: o usuário exporta o arquivo e o envia.
+resgate, fatura); o campo `marcada` diz o que já vem selecionado. Quando o arquivo traz o
+saldo do banco (`LEDGERBAL`), a resposta inclui `ajuste_saldo`: os números para o app
+calcular, conforme as linhas marcadas, o lançamento que faz o saldo do app terminar igual
+ao do banco. A decisão final é sempre do usuário. O app não se conecta ao banco: o usuário
+exporta o arquivo e o envia.
 
 Não há agendador: as recorrências vencidas são lançadas quando o usuário faz qualquer
 chamada autenticada (`token_obrigatorio` → `LancarRecorrenciasPendentesService`),
@@ -284,9 +288,12 @@ Controller (classe) → Service (`executar()`) → Model/Repository → Banco de
   financeiro e histórico completo de transações com filtros. No topo, atalhos para as
   importação de extrato do banco, as recorrências e a exportação do mês em PDF/CSV; ao
   registrar uma transação, a opção "Repetir todo mês" já a cadastra como recorrente.
-- **Investir** — score financeiro com gráfico de evolução, carteira de investimentos e
-  sugestões personalizadas por perfil de risco, liberadas após a reserva de emergência.
-- **Perfil** — perfil de investidor, limites de gasto por categoria e logout.
+- **Investir** — score financeiro com gráfico de evolução, carteira de investimentos,
+  sugestões personalizadas por perfil de risco (liberadas após a reserva de emergência) e
+  a trilha "Aprenda a investir": seis lições curtas que abrem conforme o usuário avança no
+  guia, com os números dele (conteúdo em `lib/conteudo/licoes.dart`).
+- **Perfil** — perfil de investidor, limites de gasto por categoria, logout e exclusão da
+  conta.
 
 ## Como executar o projeto
 
@@ -325,7 +332,7 @@ cd backend
 python criar_conta_demo.py
 ```
 
-Cria a conta `demo@investai.com` (senha `demo1234`) com três meses de movimentações,
+Cria a conta `demo@investai.com` (senha `Demo@1234`) com três meses de movimentações,
 recorrências, metas, reserva de emergência pela metade, um limite estourado e histórico
 de score. Todos os dados são fictícios — inclusive os pontos antigos do score, que o
 sistema não tem como calcular para trás. Rodar de novo recria só essa conta, com as
@@ -356,6 +363,10 @@ Descubra o IP do computador com `ipconfig` (linha "Endereço IPv4") e abra
 `http://ESSE_IP:8080` no navegador do celular. Na web o app usa o endereço da própria
 página para achar o backend, então não é preciso configurar mais nada. Na primeira vez o
 Windows pergunta se o Python pode receber conexões: permita em redes privadas.
+
+No computador, o app aparece dentro de uma moldura de celular (Device Preview), útil para
+apresentar no projetor; no celular ele abre normal. A moldura liga sozinha quando a janela
+tem tamanho de computador (`_telaDeComputador`, em `lib/main.dart`).
 
 ### 5. Testes
 

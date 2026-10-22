@@ -19,3 +19,14 @@ class TransacaoImportadaRepository:
         """)
         linhas = db.session.execute(sql, {"usuario_id": usuario_id}).all()
         return {linha[0] for linha in linhas}
+
+    @staticmethod
+    def liberar_da_movimentacao(movimentacao_id):
+        """Apaga a marca de "já importada" ligada a um lançamento, para a
+        linha do extrato poder ser importada de novo. Não faz commit: quem
+        chama apaga o lançamento na mesma transação."""
+        sql = text("""
+            DELETE FROM transacao_importada
+            WHERE movimentacao_id = :movimentacao_id
+        """)
+        db.session.execute(sql, {"movimentacao_id": movimentacao_id})

@@ -1,4 +1,5 @@
 import os
+import re
 
 import requests
 
@@ -18,6 +19,30 @@ from services.usuario.calcular_score_financeiro_service import (
 )
 
 SEGUNDOS_TIMEOUT = 45
+
+# Frase de elogio no começo da resposta ("É ótimo que você...", "Guilherme,
+# que bom que..."). As instruções do agente proíbem, mas o modelo às vezes
+# escreve mesmo; no celular ela só empurra a resposta para baixo.
+_ABERTURA_DE_ELOGIO = re.compile(
+    r"^(?:\w+,\s*)?(?:é|que)\s+(?:ótimo|otimo|bom|legal|bacana|excelente|incrível|incrivel)\b"
+    r"[^.!?\n]*[.!?]+\s*",
+    re.IGNORECASE,
+)
+# Conectivo que ficaria solto depois de tirar o elogio ("No entanto, ...").
+_CONECTIVO_SOLTO = re.compile(r"^(?:no entanto|mas|porém|contudo|entretanto),\s*", re.IGNORECASE)
+
+
+def sem_abertura_de_elogio(texto):
+    """Remove a frase de elogio do começo da resposta, se houver.
+
+    Só mexe no começo e só se sobrar texto depois: uma resposta que fosse
+    apenas o elogio volta como veio.
+    """
+    restante = _ABERTURA_DE_ELOGIO.sub("", texto, count=1)
+    restante = _CONECTIVO_SOLTO.sub("", restante, count=1).lstrip()
+    if not restante or restante == texto:
+        return texto
+    return restante[0].upper() + restante[1:]
 
 
 class IaNaoConfiguradaError(Exception):
@@ -82,7 +107,7 @@ class ConsultarIaService:
         if not texto:
             raise IaIndisponivelError("A IA não conseguiu responder agora.")
 
-        return {"resposta": texto}
+        return {"resposta": sem_abertura_de_elogio(texto)}
 
     def _montar_contexto(self, usuario_id, usuario):
         reserva = CalcularStatusReservaEmergenciaService().executar(usuario_id)

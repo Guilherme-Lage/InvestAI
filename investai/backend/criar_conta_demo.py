@@ -24,7 +24,7 @@ from services.usuario.criar_usuario_service import CriarUsuarioService
 from services.usuario.deletar_usuario_service import DeletarUsuarioService
 
 EMAIL_DEMO = "demo@investai.com"
-SENHA_DEMO = "demo1234"
+SENHA_DEMO = "Demo@1234"
 
 # Contas que se repetem: (descrição, tipo, valor, categoria, dia do mês).
 # São cadastradas como recorrências, então os lançamentos dos meses

@@ -1,9 +1,10 @@
 import csv
 import io
-import time
 from datetime import datetime
 
 import requests
+
+from services.mercado.reserva_em_disco import buscar_com_reserva
 
 URL_CSV = (
     "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3"
@@ -33,14 +34,13 @@ class BuscarTitulosTesouroService:
     mostra o de vencimento mais próximo (o mais líquido/comum)."""
 
     def executar(self):
-        agora = time.time()
-        if _cache["dados"] is not None and agora < _cache["expira_em"]:
-            return _cache["dados"]
+        # O arquivo é grande (~15MB), o servidor do Tesouro Transparente é
+        # lento para servi-lo (dezenas de segundos) e limita consultas
+        # repetidas. Por isso o cache, a cópia em disco e o pré-aquecimento
+        # em segundo plano feito em app.py.
+        return buscar_com_reserva("tesouro", _cache, SEGUNDOS_CACHE, self._buscar)
 
-        # O arquivo é grande (~15MB) e o servidor do Tesouro Transparente é
-        # lento para servi-lo (dezenas de segundos); por isso o cache acima
-        # e o pré-aquecimento em segundo plano feito em app.py são
-        # essenciais para não travar uma requisição de usuário nisso.
+    def _buscar(self):
         resposta = requests.get(URL_CSV, timeout=60)
         resposta.raise_for_status()
         texto = resposta.content.decode("latin-1")
@@ -81,14 +81,10 @@ class BuscarTitulosTesouroService:
                 item.pop("_vencimento_dt")
                 titulos.append(item)
 
-        dados = {
+        return {
             "atualizado_em": data_mais_recente,
             "titulos": titulos,
         }
-
-        _cache["dados"] = dados
-        _cache["expira_em"] = agora + SEGUNDOS_CACHE
-        return dados
 
     def _converter_data(self, texto):
         return datetime.strptime(texto, "%d/%m/%Y")

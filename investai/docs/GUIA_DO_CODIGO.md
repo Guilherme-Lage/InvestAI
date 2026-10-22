@@ -35,7 +35,7 @@ flutter run -d chrome
 ```
 
 Para já entrar com dados prontos, rode `python criar_conta_demo.py` na pasta `backend`
-e use `demo@investai.com` / `demo1234`. Celular, assistente de IA e testes estão
+e use `demo@investai.com` / `Demo@1234`. Celular, assistente de IA e testes estão
 explicados no README.
 
 ## 3. O mapa do backend: quatro camadas
@@ -109,7 +109,10 @@ dentro de `backend/services/`.
 ## 6. Login e segurança
 
 - **Senha.** Nunca é guardada. No cadastro vira um hash (`Usuario.definir_senha`, em
-  [usuario.py](../backend/models/usuario.py)); no login compara-se o hash.
+  [usuario.py](../backend/models/usuario.py)); no login compara-se o hash. Para ser
+  aceita, precisa ter 6 caracteres ou mais, com letra, número e caractere especial
+  (`problema_na_senha`, em `services/usuario/criar_usuario_service.py`). O app confere a
+  mesma regra antes de enviar, em `lib/utils/validacao_senha.dart`.
 - **Token.** O login devolve um token JWT válido por 8 horas
   ([auth_service.py](../backend/services/auth_service.py)). O app o guarda e envia em
   toda chamada.
@@ -119,6 +122,11 @@ dentro de `backend/services/`.
 - **Logout de verdade.** Um JWT continuaria valendo até expirar. Por isso o logout grava
   o identificador do token na tabela `token_revogado`, e o decorator recusa tokens que
   estejam lá.
+- **Excluir conta.** O Perfil tem "Excluir conta", que pede a senha de novo e apaga a
+  conta com todos os dados dela
+  ([excluir_propria_conta_service.py](../backend/services/usuario/excluir_propria_conta_service.py)).
+  É o direito de eliminação da LGPD que o termo promete. Senha errada responde 400, e não
+  401, porque no app 401 encerra a sessão.
 - **Consentimento.** Sem aceitar o termo de uso dos dados não há cadastro. O texto está
   em [TERMO_DE_CONSENTIMENTO.md](TERMO_DE_CONSENTIMENTO.md) e o resumo mostrado no app em
   `services/usuario/termos_consentimento.py`.
@@ -167,15 +175,53 @@ no DER original** de 7 entidades: `recorrencia`, `score_historico` e
   gravar nada**; o usuário revisa; `confirmar` grava só as que ele deixou marcadas. Os
   três arquivos estão em `backend/services/importacao/` e têm a explicação no topo.
 - **Como não duplica.** Cada transação do banco tem um código próprio. Os códigos já
-  importados ficam em `transacao_importada`; importar o mesmo período de novo não cria
-  nada repetido.
+  importados ficam em `transacao_importada`, ligados ao lançamento que geraram;
+  importar o mesmo período de novo não cria nada repetido.
+- **Como desfazer um erro.** Apagar um lançamento importado apaga também a marca dele,
+  então a linha volta a aparecer como nova na próxima importação
+  (`DeletarMovimentacaoService`). Isso só vale para o que foi importado depois dessa
+  ligação existir: as marcas mais antigas não sabem a qual lançamento pertencem.
 - **O que vem desmarcado na revisão.** Transação de mesmo valor em data próxima a algo
   já registrado (por exemplo, o aluguel que a recorrência lançou) e dinheiro que só
   mudou de lugar (aplicação, resgate, fatura). A decisão final é sempre do usuário.
+- **Ajuste para bater com o saldo do banco.** O extrato só traz o que entrou e saiu no
+  período: falta o dinheiro que já estava na conta antes. E o que o usuário deixa de fora
+  (uma aplicação, uma transferência para outra conta dele) saiu da conta no banco, mas
+  não sai no app. Quando o banco informa o saldo no arquivo (bloco `LEDGERBAL`), a tela
+  de revisão mostra um lançamento de ajuste, na categoria "Ajuste de saldo", calculado
+  como `saldo do banco - saldo do app até essa data - (entradas - saídas das linhas
+  marcadas)`. O valor muda a cada linha marcada ou desmarcada. Na **primeira importação**
+  de uma conta, o ajuste vem marcado e o saldo do app passa a ser exatamente o do banco.
+  Se o ajuste ficou de fora (desmarcado, ou app antigo em cache), a conta continua "não
+  igualada" e ele vem marcado de novo na próxima importação. Depois que um ajuste da
+  conta foi gravado, uma diferença indica algo que não bate: o ajuste aparece desmarcado, como
+  aviso, e a pessoa decide. O backend manda os números (`_ajuste_de_saldo`, em
+  `analisar_extrato_service.py`) e a conta final é feita no app (`AjusteSaldo.valorPara`).
+  Dinheiro aplicado deve ser registrado na aba Investir.
 - **Categoria.** Sugerida por palavras-chave em
   [sugerir_categoria.py](../backend/services/importacao/sugerir_categoria.py)
-  ("UBER" → transporte). Não usa IA; o usuário corrige na tela.
+  ("UBER" → transporte), ou pela categoria que o usuário já deu a uma transação de mesmo
+  nome. Não usa IA; o usuário corrige na tela.
 - **Limitações.** Só OFX, e só na versão web do app (navegador do PC ou do celular).
+
+### Trilha "Aprenda a investir"
+- **O que é.** Seis lições curtas, na aba Investir, que vão abrindo conforme a pessoa
+  avança no guia: as três básicas (inflação, juros compostos, reserva) sempre; o primeiro
+  investimento e risco/liquidez quando o saldo fica positivo; renda variável só com a
+  reserva completa.
+- **Por quê.** O app dizia o que fazer, mas não ensinava. A ideia é a pessoa aprender
+  sobre cada passo antes de chegar nele. A lição central mostra que guardar a reserva no
+  Tesouro Selic já é o primeiro investimento, com o passo a passo para comprar.
+- **Onde mexer.** Todo o texto está em
+  [licoes.dart](../frontend_flutter/lib/conteudo/licoes.dart), separado das telas: para
+  revisar ou criar uma lição, basta copiar uma das existentes. Os termos do glossário
+  viram links sozinhos, e cada lição pode ter um trecho "Com os seus números", calculado
+  com as taxas do dia e a reserva da pessoa.
+- **Progresso.** Fica guardado no aparelho, por conta
+  ([progresso_licoes.dart](../frontend_flutter/lib/services/progresso_licoes.dart)). Não
+  usa o backend nem o banco de dados.
+- **Limitação.** O conteúdo é fixo no app e não há quiz para conferir o que foi
+  aprendido.
 
 ### Assistente de IA
 - **Como funciona.** O backend não tem um modelo de IA dentro dele. Ele envia a pergunta,
@@ -235,8 +281,10 @@ de todas é o limite por categoria (procure `limite_categoria` nas quatro pastas
 6. **App**: um método no `ApiService` e a tela que o chama.
 
 Um cuidado: criar tabela nova funciona sozinho, mas **acrescentar coluna a uma tabela
-que já existe não funciona** em um banco já criado. Durante o desenvolvimento, a saída
-mais simples é apagar `backend/instance/investai.db` e deixar o backend recriar.
+que já existe não**, porque o `db.create_all()` não altera tabelas antigas. Para isso,
+registre a coluna também em `COLUNAS_ACRESCENTADAS`, em
+[migracoes.py](../backend/models/migracoes.py): o backend a acrescenta ao subir, sem
+perder os dados.
 
 ## 11. Limitações conhecidas
 

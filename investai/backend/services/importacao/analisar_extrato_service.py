@@ -29,6 +29,10 @@ class AnalisarExtratoService:
     - movimentacao_interna: aplicação, resgate, pagamento de fatura ou
       transferência entre contas do próprio usuário. Entra desmarcada.
 
+    O campo `marcada` diz se a linha já vem marcada para importar. Quando o
+    banco informa o saldo no arquivo, a resposta traz também `ajuste_saldo`
+    (ver _ajuste_de_saldo).
+
     A categoria sugerida vem, nesta ordem, do que o próprio usuário já
     escolheu para uma transação de mesmo nome e, se não houver, das
     palavras-chave de `sugerir_categoria`.
@@ -52,6 +56,7 @@ class AnalisarExtratoService:
                 transacao["descricao"], transacao["tipo"]
             )
             transacao["aviso"] = None
+            transacao["marcada"] = False
 
             if transacao["identificador"] in ja_importadas:
                 transacao["situacao"] = "ja_importada"
@@ -78,13 +83,84 @@ class AnalisarExtratoService:
                 )
             else:
                 transacao["situacao"] = "nova"
+            transacao["marcada"] = transacao["situacao"] == "nova"
 
         return {
+            "saldo_banco": extrato["saldo_final"],
+            "ajuste_saldo": self._ajuste_de_saldo(usuario_id, extrato, ja_importadas),
             "banco": extrato["banco"],
             "conta": extrato["conta"],
             "data_inicio": transacoes[0]["data"],
             "data_fim": transacoes[-1]["data"],
             "transacoes": transacoes,
+        }
+
+    def _ajuste_de_saldo(self, usuario_id, extrato, ja_importadas):
+        """Dados para o lançamento de ajuste que faz o saldo do app terminar
+        igual ao do banco.
+
+        O extrato só traz o que entrou e saiu no período: falta o dinheiro
+        que já estava na conta antes dele. E o que o usuário deixar de fora
+        (uma aplicação, uma transferência para outra conta dele) saiu da
+        conta no banco, mas não sai no app. Quando o banco informa o saldo
+        final (LEDGERBAL), o ajuste cobre as duas coisas:
+
+            ajuste = saldo do banco - saldo do app até essa data
+                     - (entradas - saídas das linhas marcadas)
+
+        Como depende de quais linhas ficam marcadas, o valor final é
+        calculado na tela de revisão; aqui vão os números para isso e o
+        valor com as linhas marcadas por padrão. O dinheiro que foi para uma
+        aplicação deve ser registrado na aba Investir, não no saldo.
+
+        O ajuste vem marcado enquanto esta conta do banco ainda não foi
+        igualada ao app - na primeira importação, ou se nela o ajuste ficou
+        de fora (desmarcado, ou um app desatualizado no navegador que não o
+        enviou). É quando o app passa a acompanhar a conta, e o saldo deve
+        ficar exatamente igual ao do banco. Depois de igualada, uma diferença
+        indica algo que não bate (um lançamento só no app ou só no banco); o
+        ajuste aparece desmarcado, como aviso, e a decisão fica com a pessoa.
+        """
+        saldo_banco = extrato["saldo_final"]
+        transacoes = extrato["transacoes"]
+        if not saldo_banco:
+            return None
+
+        banco, conta = extrato["banco"], extrato["conta"]
+        identificador = f"ajuste-saldo:{banco}:{conta}:{saldo_banco['data']}"
+        if identificador in ja_importadas:
+            return None  # já ajustado para o saldo desta data
+
+        data_banco = saldo_banco["data"]
+        saldo_app = (
+            MovimentacaoRepository.somar_por_tipo(usuario_id, "renda", data_fim=data_banco)
+            - MovimentacaoRepository.somar_por_tipo(usuario_id, "gasto", data_fim=data_banco)
+        )
+        marcadas = sum(
+            (t["valor"] if t["tipo"] == "renda" else -t["valor"])
+            for t in transacoes
+            if t["marcada"] and t["data"] <= data_banco
+        )
+
+        inicio = transacoes[0]["data"]
+        # A conta já foi igualada ao banco se algum ajuste dela foi gravado.
+        primeira_importacao = not any(
+            i.startswith(f"ajuste-saldo:{banco}:{conta}:") for i in ja_importadas
+        )
+
+        return {
+            "identificador": identificador,
+            # Na véspera do extrato, para não somar às receitas e despesas
+            # dos meses que ele cobre.
+            "data": (date.fromisoformat(inicio) - timedelta(days=1)).isoformat(),
+            "descricao": "Ajuste para bater com o saldo do banco",
+            "categoria": "saldo_inicial",
+            "saldo_banco": saldo_banco["valor"],
+            "data_banco": data_banco,
+            "saldo_app_ate_data_banco": round(saldo_app, 2),
+            "valor_com_marcadas_por_padrao": round(saldo_banco["valor"] - saldo_app - marcadas, 2),
+            "primeira_importacao": primeira_importacao,
+            "marcado_por_padrao": primeira_importacao,
         }
 
     def _chave(self, descricao, tipo):

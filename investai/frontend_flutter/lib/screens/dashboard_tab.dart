@@ -111,7 +111,7 @@ class _DashboardTabState extends State<DashboardTab> {
       color: InvestAITheme.verde,
       onRefresh: _carregar,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
         children: [
           Text('Olá, ${widget.usuario.nome.split(' ').first} 👋',
               style: GoogleFonts.inter(

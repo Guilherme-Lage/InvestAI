@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 import time
 import unittest
 from datetime import date, timedelta
@@ -9,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import criar_app  # noqa: E402
 from models import db, Usuario, Movimentacao, Meta, Investimento  # noqa: E402
-from services.mercado import buscar_taxas_mercado_service  # noqa: E402
+from services.mercado import buscar_taxas_mercado_service, reserva_em_disco  # noqa: E402
 
 # Taxas fixas para os testes. Usar as taxas reais faria o resultado mudar
 # conforme o Banco Central - um teste que falha sozinho em outro dia não
@@ -44,12 +45,20 @@ class TesteComBanco(unittest.TestCase):
         buscar_taxas_mercado_service._cache["dados"] = dict(TAXAS_FIXAS)
         buscar_taxas_mercado_service._cache["expira_em"] = time.time() + 3600
 
+        # Cópias de dados de mercado vão para uma pasta temporária, nunca
+        # para a pasta instance de verdade.
+        self._pasta_mercado = tempfile.TemporaryDirectory()
+        self._pasta_original = reserva_em_disco.PASTA
+        reserva_em_disco.PASTA = self._pasta_mercado.name
+
     def tearDown(self):
         db.session.remove()
         db.drop_all()
         self.contexto.pop()
-        buscar_taxas_mercado_service._cache["dados"] = None
-        buscar_taxas_mercado_service._cache["expira_em"] = 0
+        buscar_taxas_mercado_service._cache.clear()
+        buscar_taxas_mercado_service._cache.update({"dados": None, "expira_em": 0})
+        reserva_em_disco.PASTA = self._pasta_original
+        self._pasta_mercado.cleanup()
 
     # ── Atalhos para montar cenários ──────────────────────────────────
 

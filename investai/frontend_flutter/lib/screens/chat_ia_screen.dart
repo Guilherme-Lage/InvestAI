@@ -1,10 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../widgets/robo_assistente.dart';
 
 /// Guarda a conversa no aparelho. Sem isso a tela abria em branco a cada
 /// visita, enquanto a memória do agente continuava lembrando de tudo - a
@@ -170,7 +172,7 @@ class _ChatIaScreenState extends State<ChatIaScreen> {
         foregroundColor: InvestAITheme.texto,
         title: const Row(
           children: [
-            Icon(Icons.auto_awesome_rounded, color: InvestAITheme.verde, size: 20),
+            RoboAssistente(tamanho: 24),
             SizedBox(width: 8),
             Text('Assistente InvestAI'),
           ],
@@ -227,19 +229,34 @@ class _Balao extends StatelessWidget {
                   color: mensagem.erro ? InvestAITheme.vermelho : InvestAITheme.borda,
                 ),
         ),
-        child: Text(
-          mensagem.texto,
-          style: TextStyle(
-            color: doUsuario
-                ? InvestAITheme.verdeEscuro
-                : (mensagem.erro ? InvestAITheme.vermelho : InvestAITheme.texto),
-            height: 1.4,
-            fontWeight: doUsuario ? FontWeight.w600 : FontWeight.w400,
-          ),
-        ),
+        child: doUsuario || mensagem.erro
+            ? Text(
+                mensagem.texto,
+                style: TextStyle(
+                  color: doUsuario ? InvestAITheme.verdeEscuro : InvestAITheme.vermelho,
+                  height: 1.4,
+                  fontWeight: doUsuario ? FontWeight.w600 : FontWeight.w400,
+                ),
+              )
+            // O assistente responde com negrito e listas numeradas em
+            // Markdown (**assim**); sem formatar, os asteriscos apareceriam.
+            : MarkdownBody(
+                data: mensagem.texto,
+                styleSheet: _estiloMarkdown,
+              ),
       ),
     );
   }
+
+  static final _estiloMarkdown = MarkdownStyleSheet(
+    p: const TextStyle(color: InvestAITheme.texto, height: 1.4, fontSize: 14),
+    strong: const TextStyle(color: InvestAITheme.texto, fontWeight: FontWeight.w700),
+    em: const TextStyle(color: InvestAITheme.texto, fontStyle: FontStyle.italic),
+    listBullet: const TextStyle(color: InvestAITheme.verde, height: 1.4, fontSize: 14),
+    pPadding: EdgeInsets.zero,
+    blockSpacing: 10,
+    listIndent: 20,
+  );
 }
 
 class _BalaoDigitando extends StatelessWidget {

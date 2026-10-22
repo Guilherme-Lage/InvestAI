@@ -133,6 +133,61 @@ void main() {
       expect(jsonDecode(api.escritas.single.body)['valor'], primeira['valor']);
     });
 
+    testeDeTela('arrastar para apagar pede confirmação; cancelar não apaga nada',
+        (tester, api) async {
+      final primeira = (api.resposta('/api/movimentacoes') as List).first;
+      await montarTela(tester, api, const ReportTab());
+      final item = find.text(primeira['descricao']).first;
+      await rolarAte(tester, item);
+
+      await tester.drag(item, const Offset(-600, 0));
+      await tester.pumpAndSettle();
+      expect(find.text('Excluir este lançamento?'), findsOneWidget);
+
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(api.escritas, isEmpty);
+      expect(find.text(primeira['descricao']), findsWidgets);
+    });
+
+    testeDeTela('confirmar a exclusão apaga o lançamento', (tester, api) async {
+      final primeira = (api.resposta('/api/movimentacoes') as List).first;
+      await montarTela(tester, api, const ReportTab());
+      final item = find.text(primeira['descricao']).first;
+      await rolarAte(tester, item);
+
+      await tester.drag(item, const Offset(-600, 0));
+      await tester.pumpAndSettle();
+      // Como o backend de verdade, a lista recarregada já vem sem ele.
+      api.responder('/api/movimentacoes', [
+        for (final m in api.resposta('/api/movimentacoes') as List)
+          if (m['id'] != primeira['id']) m,
+      ]);
+      await tester.tap(find.widgetWithText(TextButton, 'Excluir'));
+      await tester.pumpAndSettle();
+
+      expect(api.escritas.single.method, 'DELETE');
+      expect(api.escritas.single.url.path, '/api/movimentacoes/${primeira['id']}');
+      expect(find.textContaining('foi excluído'), findsOneWidget);
+    });
+
+    testeDeTela('a tela de edição tem o botão de excluir', (tester, api) async {
+      final primeira = (api.resposta('/api/movimentacoes') as List).first;
+      await montarTela(tester, api, const ReportTab());
+      await rolarAte(tester, find.text(primeira['descricao']).first);
+      await tester.tap(find.text(primeira['descricao']).first);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Excluir lançamento'));
+      await tester.tap(find.text('Excluir lançamento'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Excluir'));
+      await tester.pumpAndSettle();
+
+      expect(api.escritas.single.method, 'DELETE');
+      expect(find.text('Editar transação'), findsNothing); // o formulário fechou
+    });
+
     testeDeTela('exportação abre no mês atual e não avança para o futuro', (tester, api) async {
       const meses = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',

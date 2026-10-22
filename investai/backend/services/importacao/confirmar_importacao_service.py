@@ -35,16 +35,20 @@ class ConfirmarImportacaoService:
                 continue  # toque duplo no botão, ou a mesma linha enviada duas vezes
             ja_importadas.add(transacao["identificador"])
 
-            db.session.add(Movimentacao(
+            movimentacao = Movimentacao(
                 descricao=transacao["descricao"],
                 tipo=transacao["tipo"],
                 valor=transacao["valor"],
                 data=transacao["data"],
                 categoria=transacao["categoria"],
                 usuario_id=usuario_id,
-            ))
+            )
+            db.session.add(movimentacao)
+            db.session.flush()  # gera o id, ainda sem gravar de vez
             db.session.add(TransacaoImportada(
-                identificador=transacao["identificador"], usuario_id=usuario_id,
+                identificador=transacao["identificador"],
+                usuario_id=usuario_id,
+                movimentacao_id=movimentacao.id,
             ))
             importadas += 1
 

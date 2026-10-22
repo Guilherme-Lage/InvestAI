@@ -19,9 +19,10 @@ from services.importacao.sugerir_categoria import (
 HOJE = date(2026, 4, 15)  # o extrato de exemplo cobre o mês anterior: março
 
 
-def _ofx(*transacoes, banco="0999", conta="12345-6"):
+def _ofx(*transacoes, banco="0999", conta="12345-6", saldo=None):
     """Monta um extrato mínimo. Cada transação é (data, valor, memo) ou
-    (data, valor, memo, fitid)."""
+    (data, valor, memo, fitid). `saldo` = (valor, data) gera o bloco
+    LEDGERBAL, no formato com marcação fechada usado pelo Inter."""
     blocos = []
     for indice, transacao in enumerate(transacoes):
         data, valor, memo = transacao[:3]
@@ -34,7 +35,10 @@ def _ofx(*transacoes, banco="0999", conta="12345-6"):
     return (
         "OFXHEADER:100\n\n<OFX>\n<BANKACCTFROM>\n"
         f"<BANKID>{banco}\n<ACCTID>{conta}\n</BANKACCTFROM>\n"
-        "<BANKTRANLIST>\n" + "".join(blocos) + "</BANKTRANLIST>\n</OFX>\n"
+        "<BANKTRANLIST>\n" + "".join(blocos) + "</BANKTRANLIST>\n"
+        + (f"<LEDGERBAL>\n<BALAMT>{saldo[0]}</BALAMT>\n<DTASOF>{saldo[1]}</DTASOF>\n</LEDGERBAL>\n"
+           if saldo else "")
+        + "</OFX>\n"
     )
 
 
@@ -155,6 +159,26 @@ class TesteLimpezaDaDescricao(unittest.TestCase):
         )
 
         self.assertEqual(extrato["transacoes"][0]["descricao"], "Pix enviado: RD SAUDE")
+
+
+class TesteSaldoDoBanco(unittest.TestCase):
+    def setUp(self):
+        self.ler = LerExtratoOfxService()
+
+    def test_le_o_saldo_final_informado_pelo_banco(self):
+        # Trecho real do fim de um extrato do Inter.
+        extrato = self.ler.executar(_ofx(("20261001", "-10.00", "A"), saldo=("389.58", "20261013")))
+
+        self.assertEqual(extrato["saldo_final"], {"valor": 389.58, "data": "2026-10-13"})
+
+    def test_le_o_saldo_no_formato_antigo_sem_fechamento(self):
+        texto = _ofx(("20261001", "-10.00", "A")).replace(
+            "</OFX>", "<LEDGERBAL>\n<BALAMT>-12,50\n<DTASOF>20261013120000\n</LEDGERBAL>\n</OFX>")
+
+        self.assertEqual(self.ler.executar(texto)["saldo_final"], {"valor": -12.5, "data": "2026-10-13"})
+
+    def test_sem_saldo_no_arquivo_devolve_none(self):
+        self.assertIsNone(self.ler.executar(_ofx(("20261001", "-10.00", "A")))["saldo_final"])
 
 
 class TesteSugestaoDeCategoria(unittest.TestCase):
@@ -406,6 +430,206 @@ class TesteImportacao(TesteComBanco):
         )
 
         self.assertEqual(situacoes, {"Pix recebido: Maria Souza Lima": "nova"})
+
+    def test_apagar_um_lancamento_importado_libera_a_linha_para_importar_de_novo(self):
+        """Importou com a categoria errada, apagou: a linha precisa voltar
+        a aparecer como nova, senão o erro fica sem conserto."""
+        from services.movimentacao.deletar_movimentacao_service import DeletarMovimentacaoService
+
+        extrato = _ofx(("20261001", "-50.00", "MERCADO"), ("20261002", "-20.00", "UBER"))
+        self.confirmar.executar(self.usuario.id, self._novas(extrato))
+        mercado = Movimentacao.query.filter_by(descricao="MERCADO").one()
+        self.assertEqual(TransacaoImportada.query.filter_by(movimentacao_id=mercado.id).count(), 1)
+
+        self.assertTrue(DeletarMovimentacaoService().executar(mercado.id))
+
+        self.assertEqual(self._situacoes(extrato), {"MERCADO": "nova", "UBER": "ja_importada"})
+
+    def test_rota_de_exclusao_tambem_libera_a_linha(self):
+        cliente = self.app.test_client()
+        cabecalho = {"Authorization": f"Bearer {AuthService.gerar_token(self.usuario.id)}"}
+        extrato = _ofx(("20261001", "-50.00", "MERCADO"))
+        self.confirmar.executar(self.usuario.id, self._novas(extrato))
+        mercado = Movimentacao.query.one()
+
+        resposta = cliente.delete(f"/api/movimentacoes/{mercado.id}", headers=cabecalho)
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(TransacaoImportada.query.count(), 0)
+        self.assertEqual(self._situacoes(extrato), {"MERCADO": "nova"})
+
+    def test_apagar_lancamento_digitado_nao_mexe_nas_importacoes(self):
+        from services.movimentacao.deletar_movimentacao_service import DeletarMovimentacaoService
+
+        self.confirmar.executar(self.usuario.id, self._novas(_ofx(("20261001", "-50.00", "A"))))
+        digitado = Movimentacao(
+            descricao="Feira", tipo="gasto", valor=30.0, data="2026-10-03",
+            categoria="alimentacao", usuario_id=self.usuario.id,
+        ).salvar()
+
+        DeletarMovimentacaoService().executar(digitado.id)
+
+        self.assertEqual(TransacaoImportada.query.count(), 1)
+
+    def _importar_como_o_app(self, analise, deixar_de_fora=()):
+        """Faz o que a tela de revisão faz: importa as linhas marcadas (menos
+        as de `deixar_de_fora`) e, se o ajuste estiver marcado, calcula o
+        valor dele com essa seleção e o envia junto."""
+        selecionadas = [
+            t for t in analise["transacoes"]
+            if t["marcada"] and t["descricao"] not in deixar_de_fora
+        ]
+        enviar = list(selecionadas)
+        ajuste = analise["ajuste_saldo"]
+        if ajuste and ajuste["marcado_por_padrao"]:
+            valor = ajuste["saldo_banco"] - ajuste["saldo_app_ate_data_banco"] - sum(
+                t["valor"] if t["tipo"] == "renda" else -t["valor"]
+                for t in selecionadas if t["data"] <= ajuste["data_banco"]
+            )
+            if abs(valor) >= 0.01:
+                enviar.append({
+                    "identificador": ajuste["identificador"], "data": ajuste["data"],
+                    "descricao": ajuste["descricao"], "categoria": ajuste["categoria"],
+                    "tipo": "renda" if valor > 0 else "gasto", "valor": round(abs(valor), 2),
+                })
+        if enviar:
+            self.confirmar.executar(self.usuario.id, enviar)
+
+    def _saldo(self):
+        from services.movimentacao.calcular_saldo_service import CalcularSaldoService
+        return CalcularSaldoService().executar(self.usuario.id)
+
+    def test_conta_nova_fica_com_o_mesmo_saldo_do_banco(self):
+        """Sem o dinheiro que já estava na conta, o saldo do app ficava
+        negativo mesmo com saldo positivo no banco."""
+        extrato = _ofx(
+            ("20261001", "150.00", "PIX RECEBIDO"),
+            ("20261005", "-600.00", "ALUGUEL"),
+            ("20261010", "-40.42", "MERCADO"),
+            saldo=("389.58", "20261013"),
+        )
+
+        analise = self.analisar.executar(self.usuario.id, extrato)
+
+        ajuste = analise["ajuste_saldo"]
+        self.assertEqual(analise["saldo_banco"], {"valor": 389.58, "data": "2026-10-13"})
+        # 389,58 - (150 - 600 - 40,42) = 880,00 que já estavam na conta
+        self.assertEqual(ajuste["valor_com_marcadas_por_padrao"], 880.0)
+        self.assertEqual(ajuste["data"], "2026-09-30")
+        self.assertTrue(ajuste["marcado_por_padrao"])
+
+        self._importar_como_o_app(analise)
+        self.assertAlmostEqual(self._saldo(), 389.58, places=2)
+
+    def test_linha_deixada_de_fora_nao_desequilibra_o_saldo(self):
+        """O caso real: uma aplicação ficou desmarcada na revisão. Ela saiu
+        da conta no banco; o saldo do app tem que acompanhar."""
+        extrato = _ofx(
+            ("20261001", "1000.00", "SALARIO"),
+            ("20261003", "-366.38", "APLICACAO RDB"),
+            ("20261005", "-200.00", "MERCADO"),
+            saldo=("900.00", "20261013"),
+        )
+
+        analise = self.analisar.executar(self.usuario.id, extrato)
+        self.assertFalse(
+            next(t for t in analise["transacoes"] if t["descricao"] == "APLICACAO RDB")["marcada"]
+        )
+        self._importar_como_o_app(analise)
+
+        self.assertAlmostEqual(self._saldo(), 900.0, places=2)
+
+    def test_desmarcar_qualquer_linha_tambem_mantem_o_saldo_do_banco(self):
+        extrato = _ofx(
+            ("20261001", "1000.00", "SALARIO"),
+            ("20261005", "-200.00", "MERCADO"),
+            saldo=("900.00", "20261013"),
+        )
+
+        self._importar_como_o_app(
+            self.analisar.executar(self.usuario.id, extrato), deixar_de_fora=("MERCADO",))
+
+        self.assertAlmostEqual(self._saldo(), 900.0, places=2)
+
+    def test_nas_importacoes_seguintes_a_diferenca_vem_so_como_aviso(self):
+        """Depois da primeira importação, o app não iguala ao banco sozinho:
+        uma diferença indica algo que não bate e precisa da pessoa."""
+        primeira = _ofx(("20261001", "150.00", "A"), ("20261005", "-600.00", "B"),
+                        saldo=("300.00", "20261006"))
+        self._importar_como_o_app(self.analisar.executar(self.usuario.id, primeira))
+        self.assertAlmostEqual(self._saldo(), 300.0, places=2)
+        seguinte = _ofx(("20261001", "150.00", "A"), ("20261005", "-600.00", "B"),
+                        ("20261010", "-50.00", "C"), saldo=("100.00", "20261013"))
+
+        analise = self.analisar.executar(self.usuario.id, seguinte)
+
+        ajuste = analise["ajuste_saldo"]
+        self.assertFalse(ajuste["primeira_importacao"])
+        self.assertFalse(ajuste["marcado_por_padrao"])
+        self.assertEqual(ajuste["valor_com_marcadas_por_padrao"], -150.0)  # 100 - 300 - (-50)
+        self._importar_como_o_app(analise)
+        self.assertAlmostEqual(self._saldo(), 250.0, places=2)  # nada mudou sozinho
+
+    def test_quem_importou_sem_o_ajuste_corrige_importando_de_novo(self):
+        """O caso real: as linhas entraram, mas o ajuste não (app antigo em
+        cache no navegador). A conta ainda não foi igualada ao banco, então
+        reimportar o mesmo arquivo traz o ajuste marcado."""
+        extrato = _ofx(("20261001", "150.00", "A"), ("20261005", "-600.00", "B"),
+                       saldo=("906.38", "20261013"))
+        self.confirmar.executar(self.usuario.id, self._novas(extrato))
+        self.assertAlmostEqual(self._saldo(), -450.0, places=2)
+
+        analise = self.analisar.executar(self.usuario.id, extrato)
+
+        self.assertTrue(analise["ajuste_saldo"]["marcado_por_padrao"])
+        self._importar_como_o_app(analise)
+        self.assertAlmostEqual(self._saldo(), 906.38, places=2)
+
+    def test_ajuste_ja_feito_nao_e_oferecido_de_novo_ate_ser_apagado(self):
+        from services.movimentacao.deletar_movimentacao_service import DeletarMovimentacaoService
+
+        extrato = _ofx(("20261001", "-10.00", "A"), saldo=("500.00", "20261013"))
+        self._importar_como_o_app(self.analisar.executar(self.usuario.id, extrato))
+        self.assertIsNone(self.analisar.executar(self.usuario.id, extrato)["ajuste_saldo"])
+
+        ajuste = Movimentacao.query.filter_by(categoria="saldo_inicial").one()
+        DeletarMovimentacaoService().executar(ajuste.id)
+
+        self.assertIsNotNone(self.analisar.executar(self.usuario.id, extrato)["ajuste_saldo"])
+
+    def test_primeira_importacao_iguala_ao_banco_mesmo_com_lancamentos_digitados(self):
+        """Na primeira importação de uma conta, o saldo do app passa a ser
+        exatamente o do banco, mesmo que já houvesse lançamentos à mão."""
+        Movimentacao(
+            descricao="Salário", tipo="renda", valor=2000.0, data="2026-09-05",
+            categoria="salario", usuario_id=self.usuario.id,
+        ).salvar()
+
+        analise = self.analisar.executar(
+            self.usuario.id, _ofx(("20261001", "-10.00", "A"), saldo=("500.00", "20261013")))
+
+        ajuste = analise["ajuste_saldo"]
+        self.assertTrue(ajuste["primeira_importacao"])
+        self.assertTrue(ajuste["marcado_por_padrao"])
+        self.assertEqual(ajuste["saldo_app_ate_data_banco"], 2000.0)
+        self.assertEqual(ajuste["valor_com_marcadas_por_padrao"], -1490.0)  # 500 - 2000 - (-10)
+        self._importar_como_o_app(analise)
+        self.assertAlmostEqual(self._saldo(), 500.0, places=2)
+
+    def test_extrato_de_outra_conta_do_banco_tambem_e_primeira_importacao(self):
+        self._importar_como_o_app(self.analisar.executar(
+            self.usuario.id, _ofx(("20261001", "-10.00", "A"), saldo=("500.00", "20261013"))))
+
+        analise = self.analisar.executar(self.usuario.id, _ofx(
+            ("20261001", "-20.00", "Z"), conta="99999-9", saldo=("300.00", "20261013")))
+
+        self.assertTrue(analise["ajuste_saldo"]["primeira_importacao"])
+
+    def test_sem_saldo_no_extrato_nao_ha_ajuste(self):
+        analise = self.analisar.executar(self.usuario.id, _ofx(("20261001", "-10.00", "A")))
+
+        self.assertIsNone(analise["ajuste_saldo"])
+        self.assertIsNone(analise["saldo_banco"])
 
     def test_extrato_de_exemplo_na_conta_demo_aponta_as_recorrencias(self):
         """O cenário da apresentação: a conta demo já tem salário, aluguel,

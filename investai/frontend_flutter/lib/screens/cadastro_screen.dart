@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../utils/formato_moeda.dart';
+import '../utils/validacao_senha.dart';
 import 'onboarding_screen.dart';
 import 'termo_completo_screen.dart';
 
@@ -88,8 +89,9 @@ class _CadastroScreenState extends State<CadastroScreen> {
       setState(() => _erro = 'E-mail inválido.');
       return false;
     }
-    if (_senhaController.text.length < 6) {
-      setState(() => _erro = 'A senha deve ter pelo menos 6 caracteres.');
+    final problemaSenha = problemaNaSenha(_senhaController.text);
+    if (problemaSenha != null) {
+      setState(() => _erro = problemaSenha);
       return false;
     }
     if (_senhaController.text != _confirmarSenhaController.text) {
@@ -399,7 +401,7 @@ class _EtapaDadosState extends State<_EtapaDados> {
             style: const TextStyle(color: InvestAITheme.texto),
             decoration: InputDecoration(
               labelText: 'Senha',
-              helperText: 'Mínimo de 6 caracteres',
+              helperText: 'Mínimo de 6, com letra, número e caractere especial',
               prefixIcon: const Icon(Icons.lock_outline_rounded,
                   color: InvestAITheme.cinza, size: 20),
               suffixIcon: IconButton(

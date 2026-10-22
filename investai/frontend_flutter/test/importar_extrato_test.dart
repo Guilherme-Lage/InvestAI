@@ -153,6 +153,145 @@ void main() {
     );
   });
 
+  Map<String, dynamic> linha(String id, String descricao, double valor, String situacao,
+          {bool marcada = true}) =>
+      {
+        'identificador': id, 'data': '2026-10-05', 'descricao': descricao,
+        'tipo': valor > 0 ? 'renda' : 'gasto', 'valor': valor.abs(), 'categoria': 'outros',
+        'situacao': situacao, 'marcada': marcada, 'aviso': null,
+      };
+
+  Map<String, dynamic> ajuste({double saldoApp = 0, bool primeira = true}) => {
+        'identificador': 'ajuste-saldo:077:123:2026-10-13', 'data': '2026-09-30',
+        'descricao': 'Ajuste para bater com o saldo do banco', 'categoria': 'saldo_inicial',
+        'saldo_banco': 389.58, 'data_banco': '2026-10-13',
+        'saldo_app_ate_data_banco': saldoApp,
+        'primeira_importacao': primeira, 'marcado_por_padrao': primeira,
+      };
+
+  testeDeTela('o ajuste acompanha as linhas marcadas e vai junto na confirmação',
+      (tester, api) async {
+    api.responder('POST /api/importacao/analisar', {
+      'saldo_banco': {'valor': 389.58, 'data': '2026-10-13'},
+      'ajuste_saldo': ajuste(),
+      'transacoes': [
+        linha('x1', 'Pix enviado: ALUGUEL', -600, 'nova'),
+        linha('x2', 'APLICACAO RDB', -366.38, 'movimentacao_interna', marcada: false),
+      ],
+    });
+    api.responder('POST /api/importacao/confirmar', {'importadas': 3, 'ja_existiam': 0});
+    await montarTela(tester, api, const ImportarExtratoScreen(escolher: _arquivo));
+
+    await tester.tap(find.text('Escolher arquivo .ofx'));
+    await tester.pumpAndSettle();
+
+    // 389,58 - 0 - (-600) = 989,58 com só o aluguel marcado.
+    expect(find.text('Ajuste para bater com o saldo do banco'), findsOneWidget);
+    expect(find.text('+ R\$ 989,58'), findsOneWidget);
+    expect(find.text('Importar 2 transações'), findsOneWidget); // aluguel + ajuste
+
+    // Marcar a aplicação muda o ajuste: o saldo continua batendo com o banco.
+    await tester.tap(find.byType(Checkbox).last);
+    await tester.pumpAndSettle();
+    expect(find.text('+ R\$ 1355,96'), findsOneWidget);
+
+    await tester.tap(find.text('Importar 3 transações'));
+    await tester.pumpAndSettle();
+    final enviadas = (jsonDecode(api.escritas.last.body)['transacoes'] as List).cast<Map>();
+    final ajusteEnviado = enviadas.last;
+    expect(ajusteEnviado['identificador'], 'ajuste-saldo:077:123:2026-10-13');
+    expect(ajusteEnviado['tipo'], 'renda');
+    expect(ajusteEnviado['valor'], 1355.96);
+    expect(ajusteEnviado['categoria'], 'saldo_inicial');
+  });
+
+  testeDeTela('desmarcar o ajuste tira ele da importação', (tester, api) async {
+    api.responder('POST /api/importacao/analisar', {
+      'ajuste_saldo': ajuste(),
+      'transacoes': [linha('x1', 'Pix enviado: ALUGUEL', -600, 'nova')],
+    });
+    api.responder('POST /api/importacao/confirmar', {'importadas': 1, 'ja_existiam': 0});
+    await montarTela(tester, api, const ImportarExtratoScreen(escolher: _arquivo));
+    await tester.tap(find.text('Escolher arquivo .ofx'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(Checkbox).first); // o do ajuste, no topo
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Importar 1 transação'));
+    await tester.pumpAndSettle();
+
+    final enviadas = (jsonDecode(api.escritas.last.body)['transacoes'] as List).cast<Map>();
+    expect(enviadas.map((t) => t['identificador']), ['x1']);
+  });
+
+  testeDeTela('na primeira importação, mesmo sem linhas novas, o ajuste vem marcado',
+      (tester, api) async {
+    api.responder('POST /api/importacao/analisar', {
+      'ajuste_saldo': ajuste(saldoApp: -823.75),
+      'transacoes': [
+        {...linha('x1', 'Pix enviado: ALUGUEL', -600, 'ja_importada', marcada: false)},
+      ],
+    });
+    await montarTela(tester, api, const ImportarExtratoScreen(escolher: _arquivo));
+    await tester.tap(find.text('Escolher arquivo .ofx'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Confira antes de importar'), findsOneWidget);
+    expect(find.text('+ R\$ 1213,33'), findsOneWidget); // 389,58 - (-823,75)
+    expect(find.text('Importar 1 transação'), findsOneWidget);
+  });
+
+  testeDeTela('nas importações seguintes, a diferença vem como aviso e desmarcada',
+      (tester, api) async {
+    api.responder('POST /api/importacao/analisar', {
+      'ajuste_saldo': ajuste(saldoApp: 1266.38, primeira: false),
+      'transacoes': [
+        {...linha('x1', 'Pix enviado: ALUGUEL', -600, 'ja_importada', marcada: false)},
+      ],
+    });
+    api.responder('POST /api/importacao/confirmar', {'importadas': 1, 'ja_existiam': 0});
+    await montarTela(tester, api, const ImportarExtratoScreen(escolher: _arquivo));
+    await tester.tap(find.text('Escolher arquivo .ofx'));
+    await tester.pumpAndSettle();
+
+    // 389,58 - 1266,38 = -876,80: o app ficaria acima do banco.
+    expect(find.text('- R\$ 876,80'), findsOneWidget);
+    expect(find.textContaining('ficaria R\$ 876,80 diferente do banco'), findsOneWidget);
+    expect(find.text('Nenhuma transação marcada'), findsOneWidget); // nada vai sozinho
+
+    await tester.tap(find.byType(Checkbox).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Importar 1 transação'), findsOneWidget);
+  });
+
+  testeDeTela('quando o app já bate com o banco, o ajuste nem aparece', (tester, api) async {
+    api.responder('POST /api/importacao/analisar', {
+      'ajuste_saldo': ajuste(saldoApp: 989.58),
+      'transacoes': [linha('x1', 'Pix enviado: ALUGUEL', -600, 'nova')],
+    });
+    await montarTela(tester, api, const ImportarExtratoScreen(escolher: _arquivo));
+    await tester.tap(find.text('Escolher arquivo .ofx'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ajuste para bater com o saldo do banco'), findsNothing);
+    expect(find.text('Importar 1 transação'), findsOneWidget);
+  });
+
+  test('sem o campo "marcada", vale a regra antiga: só o que é novo', () {
+    final antigo = TransacaoExtrato.fromJson({
+      'identificador': 'x', 'data': '2026-03-05', 'descricao': 'A', 'tipo': 'gasto',
+      'valor': 1, 'categoria': 'outros', 'situacao': 'possivel_duplicata',
+    });
+    final ajusteDesmarcado = TransacaoExtrato.fromJson({
+      'identificador': 'y', 'data': '2026-03-04', 'descricao': 'Saldo anterior ao extrato',
+      'tipo': 'gasto', 'valor': 10, 'categoria': 'saldo_inicial',
+      'situacao': 'ajuste_saldo', 'marcada': false,
+    });
+
+    expect(antigo.selecionada, isFalse);
+    expect(ajusteDesmarcado.selecionada, isFalse);
+  });
+
   testeDeTela('extrato já importado por inteiro não oferece nada para importar',
       (tester, api) async {
     final analise = api.resposta('POST /api/importacao/analisar') as Map<String, dynamic>;

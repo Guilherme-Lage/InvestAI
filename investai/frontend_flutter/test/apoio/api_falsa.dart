@@ -28,9 +28,16 @@ class ApiFalsa {
   /// Resposta gravada de uma rota, para o teste comparar com a tela.
   dynamic resposta(String rota) => _respostas[rota];
 
+  /// Status combinados pelo teste para escritas (ex.: 400 de senha errada).
+  final Map<String, int> _status = {};
+
   /// Define o que o backend falso devolve para uma rota neste teste.
-  /// Para escritas a chave leva o método: `'POST /api/importacao/confirmar'`.
-  void responder(String rota, dynamic corpo) => _respostas[rota] = corpo;
+  /// Para escritas a chave leva o método: `'POST /api/importacao/confirmar'`,
+  /// e `status` permite simular um erro.
+  void responder(String rota, dynamic corpo, {int? status}) {
+    _respostas[rota] = corpo;
+    if (status != null) _status[rota] = status;
+  }
 
   /// Chamadas de escrita feitas pelo app, na ordem.
   List<http.Request> get escritas =>
@@ -42,11 +49,12 @@ class ApiFalsa {
         if (requisicao.method != 'GET') {
           // Escritas com resposta definida (gravada do backend ou combinada
           // pelo teste via [responder]); as demais devolvem o que receberam.
-          final definida = _respostas['${requisicao.method} ${requisicao.url.path}'];
+          final chave = '${requisicao.method} ${requisicao.url.path}';
+          final definida = _respostas[chave];
           final corpo = definida != null
               ? jsonEncode(definida)
               : (requisicao.body.isEmpty ? '{}' : requisicao.body);
-          return _json(corpo, requisicao.method == 'POST' ? 201 : 200);
+          return _json(corpo, _status[chave] ?? (requisicao.method == 'POST' ? 201 : 200));
         }
 
         final gravada = _respostas[requisicao.url.path];

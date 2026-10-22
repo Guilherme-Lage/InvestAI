@@ -7,7 +7,7 @@ from services.usuario.logout_usuario_service import LogoutUsuarioService
 from services.usuario.listar_usuarios_service import ListarUsuariosService
 from services.usuario.buscar_usuario_por_id_service import BuscarUsuarioPorIdService
 from services.usuario.atualizar_usuario_service import AtualizarUsuarioService
-from services.usuario.deletar_usuario_service import DeletarUsuarioService
+from services.usuario.excluir_propria_conta_service import ExcluirPropriaContaService
 from services.usuario.buscar_usuarios_com_estatisticas_service import BuscarUsuariosComEstatisticasService
 from services.usuario.listar_usuarios_por_perfil_service import ListarUsuariosPorPerfilService
 from services.usuario.gerar_relatorio_financeiro_usuario_service import GerarRelatorioFinanceiroUsuarioService
@@ -107,9 +107,18 @@ class UsuarioController:
 
     @token_obrigatorio
     def deletar(self, id):
+        """Exclui a conta do usuário logado e tudo o que é dela. Exige a
+        senha no corpo ({"senha": "..."}) para confirmar.
+
+        Senha errada responde 400, não 401: no app, 401 significa sessão
+        encerrada e manda a pessoa de volta ao login."""
         if not _pertence_ao_usuario(id):
             return jsonify({"erro": "Usuário não encontrado"}), 404
-        ok = DeletarUsuarioService().executar(id)
+        dados = request.get_json(silent=True) or {}
+        try:
+            ok = ExcluirPropriaContaService().executar(id, dados.get("senha"))
+        except ValueError as erro:
+            return jsonify({"erro": str(erro)}), 400
         if not ok:
             return jsonify({"erro": "Usuário não encontrado"}), 404
         return jsonify({"mensagem": "Usuário excluído"})

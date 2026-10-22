@@ -17,13 +17,25 @@ void main() {
     statusBarIconBrightness: Brightness.light,
   ));
 
-  // Device Preview ativo apenas em debug (desativa automaticamente em produção)
   runApp(
     DevicePreview(
-      enabled: kDebugMode,
+      // Moldura de celular sempre em desenvolvimento e, na versão
+      // compilada, só em tela de computador: no projetor o app aparece
+      // num celular desenhado, e no celular de verdade fica sem moldura.
+      enabled: kDebugMode || _telaDeComputador(),
       builder: (context) => const InvestAIApp(),
     ),
   );
+}
+
+/// Se a janela tem tamanho de computador. A altura mínima deixa de fora o
+/// celular deitado, que é largo mas baixo.
+bool _telaDeComputador() {
+  final telas = WidgetsBinding.instance.platformDispatcher.views;
+  if (telas.isEmpty) return false;
+  final tela = telas.first;
+  final tamanho = tela.physicalSize / tela.devicePixelRatio;
+  return tamanho.width >= 700 && tamanho.height >= 500;
 }
 
 class InvestAIApp extends StatelessWidget {

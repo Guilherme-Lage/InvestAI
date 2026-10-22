@@ -10,6 +10,26 @@ REGEX_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 TAMANHO_MINIMO_SENHA = 6
 
 
+def problema_na_senha(senha):
+    """Diz o que falta para a senha ser aceita, ou None se ela estiver boa.
+
+    Além do tamanho mínimo, exige letra, número e caractere especial: o
+    app guarda dados financeiros, e senha só de letras ou só de números é
+    das primeiras que se tenta adivinhar. A mesma regra é conferida no app
+    (lib/utils/validacao_senha.dart), para o aviso aparecer antes de enviar.
+    """
+    if len(senha) < TAMANHO_MINIMO_SENHA:
+        return f"A senha deve ter pelo menos {TAMANHO_MINIMO_SENHA} caracteres."
+    if not re.search(r"[A-Za-zÀ-ÿ]", senha):
+        return "A senha precisa ter pelo menos uma letra."
+    if not re.search(r"\d", senha):
+        return "A senha precisa ter pelo menos um número."
+    # Especial é tudo o que não é letra, número nem espaço (ex.: @ # ! _ -).
+    if not re.search(r"[^\w\s]|_", senha):
+        return "A senha precisa ter pelo menos um caractere especial (ex.: @, #, !)."
+    return None
+
+
 class CriarUsuarioService:
     """RF01 - Cadastro de conta com nome, e-mail e senha.
 
@@ -27,10 +47,9 @@ class CriarUsuarioService:
             raise ValueError("Informe um nome válido.")
         if not REGEX_EMAIL.match(email):
             raise ValueError("Informe um e-mail válido.")
-        if len(senha) < TAMANHO_MINIMO_SENHA:
-            raise ValueError(
-                f"A senha deve ter pelo menos {TAMANHO_MINIMO_SENHA} caracteres."
-            )
+        problema = problema_na_senha(senha)
+        if problema:
+            raise ValueError(problema)
         if UsuarioRepository.buscar_por_email(email):
             raise ValueError("Já existe uma conta cadastrada com esse e-mail.")
 
