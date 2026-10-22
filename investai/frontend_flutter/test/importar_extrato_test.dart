@@ -118,6 +118,41 @@ void main() {
     expect(mensagem, '${novas.length} transações importadas.');
   });
 
+  testeDeTela('trocar a categoria de uma linha muda as outras de mesmo nome',
+      (tester, api) async {
+    Map<String, dynamic> pix(String id, String nome) => {
+          'identificador': id, 'data': '2026-03-05', 'descricao': 'Pix enviado: $nome',
+          'tipo': 'gasto', 'valor': 30, 'categoria': 'outros', 'situacao': 'nova', 'aviso': null,
+        };
+    api.responder('POST /api/importacao/analisar', {
+      'transacoes': [pix('a', 'FULANO'), pix('b', 'BELTRANO'), pix('c', 'FULANO')],
+    });
+    api.responder('POST /api/importacao/confirmar', {'importadas': 3, 'ja_existiam': 0});
+    await montarTela(tester, api, const ImportarExtratoScreen(escolher: _arquivo));
+
+    await tester.tap(find.text('Escolher arquivo .ofx'));
+    await tester.pumpAndSettle();
+    // As três estão sem categoria, e a tela avisa.
+    expect(find.textContaining('3 transações estão sem categoria'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Trocar categoria').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lazer').last);
+    await tester.pumpAndSettle();
+
+    // Sobrou só o BELTRANO sem categoria: as duas do FULANO mudaram juntas.
+    expect(find.textContaining('1 transação está sem categoria'), findsOneWidget);
+    expect(find.text('Lazer'), findsNWidgets(2));
+
+    await tester.tap(find.text('Importar 3 transações'));
+    await tester.pumpAndSettle();
+    final enviadas = (jsonDecode(api.escritas.last.body)['transacoes'] as List).cast<Map>();
+    expect(
+      {for (final t in enviadas) t['identificador']: t['categoria']},
+      {'a': 'lazer', 'b': 'outros', 'c': 'lazer'},
+    );
+  });
+
   testeDeTela('extrato já importado por inteiro não oferece nada para importar',
       (tester, api) async {
     final analise = api.resposta('POST /api/importacao/analisar') as Map<String, dynamic>;

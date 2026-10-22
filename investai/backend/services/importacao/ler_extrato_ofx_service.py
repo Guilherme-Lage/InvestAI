@@ -2,6 +2,8 @@ import html
 import re
 from datetime import date
 
+from services.importacao.limpar_descricao import limpar_descricao
+
 TAMANHO_MAXIMO_DESCRICAO = 120  # limite da coluna movimentacao.descricao
 
 
@@ -79,8 +81,8 @@ class LerExtratoOfxService:
         if data is None or not valor:
             return None
 
-        descricao = self._campo(bloco, "MEMO") or self._campo(bloco, "NAME") or "Sem descrição"
-        descricao = re.sub(r"\s+", " ", descricao)[:TAMANHO_MAXIMO_DESCRICAO]
+        bruta = self._campo(bloco, "MEMO") or self._campo(bloco, "NAME") or ""
+        descricao = (limpar_descricao(bruta) or "Sem descrição")[:TAMANHO_MAXIMO_DESCRICAO]
 
         codigo = self._campo(bloco, "FITID")
         if not codigo:
