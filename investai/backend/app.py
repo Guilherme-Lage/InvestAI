@@ -2,6 +2,7 @@ import os
 import threading
 import time
 
+from dotenv import load_dotenv
 from flask import Flask, jsonify
 from flask_cors import CORS
 
@@ -57,8 +58,9 @@ def criar_app(config=None):
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     # Em produção, defina a variável de ambiente SECRET_KEY com um valor
     # forte e secreto. Esta é usada para assinar os tokens JWT (RF02).
-    app.config["SECRET_KEY"] = os.environ.get(
-        "SECRET_KEY", "chave-de-desenvolvimento-troque-em-producao"
+    # "or": um SECRET_KEY vazio no .env também cai no valor de desenvolvimento.
+    app.config["SECRET_KEY"] = (
+        os.environ.get("SECRET_KEY") or "chave-de-desenvolvimento-troque-em-producao"
     )
     if config:
         app.config.update(config)
@@ -105,6 +107,10 @@ def criar_app(config=None):
 
 
 if __name__ == "__main__":
+    # Chaves e endereços (SECRET_KEY, N8N_WEBHOOK_URL, N8N_API_KEY...) vêm do
+    # arquivo .env ao lado deste - fora do Git; o modelo é o .env.example.
+    # Uma variável já definida no terminal tem prioridade sobre o arquivo.
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
     app = criar_app()
     # Por padrão só o próprio computador acessa a API. Para testar pelo
     # celular na mesma rede Wi-Fi, suba com INVESTAI_HOST=0.0.0.0.

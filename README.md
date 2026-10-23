@@ -8,5 +8,9 @@ relatório de elicitação de requisitos implementados.
 
 Backend em Flask (API REST com autenticação JWT) e app mobile em Flutter.
 
-Documentação completa — arquitetura, models, rotas da API, checklist de RF01–RF20 e
-como rodar o projeto — está em [`investai/README.md`](investai/README.md).
+Documentação completa — arquitetura, models, rotas da API, checklist de RF01–RF20,
+**Funcionalidades Implementadas** e como rodar o projeto — está em
+[`investai/README.md`](investai/README.md#funcionalidades-implementadas).
+
+O **diagrama de classes** está em
+[`investai/docs/DIAGRAMA_DE_CLASSES.md`](investai/docs/DIAGRAMA_DE_CLASSES.md).

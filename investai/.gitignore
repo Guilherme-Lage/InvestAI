@@ -2,6 +2,8 @@
 **/__pycache__/
 *.pyc
 backend/instance/
+# Variáveis de ambiente com chaves (o modelo versionado é o .env.example)
+.env
 .venv/
 venv/
 
