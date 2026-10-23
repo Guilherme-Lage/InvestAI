@@ -10,6 +10,9 @@ com autenticação JWT) e `frontend_flutter` (app mobile em Flutter), implementa
 **Novo no projeto?** Comece pelo [guia do código](docs/GUIA_DO_CODIGO.md): ele mostra por
 onde ler, como as peças se ligam e onde está cada regra de negócio.
 
+**Diagrama de classes:** [docs/DIAGRAMA_DE_CLASSES.md](docs/DIAGRAMA_DE_CLASSES.md)
+(também em imagem: [docs/diagrama_de_classes.png](docs/diagrama_de_classes.png)).
+
 ## Estrutura do repositório
 
 ```
@@ -104,8 +107,10 @@ localmente (`shared_preferences`) e o envia em toda chamada autenticada.
 `Recorrencia`, `ScoreHistorico` e `TransacaoImportada` são extensões posteriores ao
 relatório de elicitação: não fazem parte das 7 entidades do DER original nem dos RF01–RF20.
 
-Todas (exceto `TokenRevogado`) herdam de `ModeloBase`, que fornece criar (`salvar`),
-listar, buscar, atualizar e deletar.
+Todas herdam de `ModeloBase` (que herda de `db.Model`), que fornece `salvar()`,
+`deletar()`, `listar_todos()` e `buscar_por_id()`; cada uma que pode ser alterada tem seu
+próprio `atualizar(...)`. Classes, atributos e relacionamentos (herança e composição)
+estão no [diagrama de classes](docs/DIAGRAMA_DE_CLASSES.md).
 
 ## Repositories e consultas avançadas
 
@@ -215,7 +220,8 @@ risco e score), para que a resposta seja personalizada em vez de genérica, e
 para que a IA respeite a regra de RF14/RF15 (só sugerir investimento depois da
 reserva formada).
 
-Configuração (variáveis de ambiente do backend):
+Configuração (variáveis de ambiente do backend, no arquivo `backend/.env` — veja
+[Como executar](#1-backend)):
 
 | Variável | Obrigatória | Descrição |
 |---|---|---|
@@ -277,6 +283,16 @@ Controller (classe) → Service (`executar()`) → Model/Repository → Banco de
 23. Exportar o relatório mensal em PDF ou CSV — `MovimentacaoController.exportar_relatorio` → `ExportarRelatorioMensalService`
 24. Acompanhar a evolução do score financeiro — `OrientacaoController.historico_score` → `ListarHistoricoScoreService`
 25. Importar extrato bancário (OFX) com revisão antes de gravar — `ImportacaoController.analisar` / `confirmar` → `AnalisarExtratoService` / `ConfirmarImportacaoService`
+26. Editar um lançamento — `MovimentacaoController.atualizar` → `AtualizarMovimentacaoService`
+27. Excluir um lançamento (se veio de extrato, a linha pode ser importada de novo) — `MovimentacaoController.deletar` → `DeletarMovimentacaoService`
+28. Editar ou pausar uma recorrência — `RecorrenciaController.atualizar` → `AtualizarRecorrenciaService`
+29. Excluir uma recorrência — `RecorrenciaController.deletar` → `DeletarRecorrenciaService`
+30. Excluir uma meta — `MetaController.deletar` → `DeletarMetaService`
+31. Remover investimento da carteira — `InvestimentoController.deletar` → `DeletarInvestimentoService`
+32. Remover limite de gasto de uma categoria — `LimiteCategoriaController.deletar` → `DeletarLimiteCategoriaService`
+33. Simular quanto um valor inicial e aportes mensais renderiam em cada tipo de aplicação, com as taxas oficiais do dia — `InvestimentoController.simular` → `SimularAporteService`
+34. Comparar cada investimento da carteira com a melhor alternativa de mesmo risco e liquidez — `InvestimentoController.comparar` → `CompararCarteiraService`
+35. Excluir a própria conta, com confirmação de senha (LGPD) — `UsuarioController.deletar` → `ExcluirPropriaContaService`
 
 ## Funcionalidades (telas do app Flutter)
 
@@ -302,13 +318,25 @@ Controller (classe) → Service (`executar()`) → Model/Repository → Banco de
 ```bash
 cd backend
 pip install -r requirements.txt
+cp .env.example .env      # e preencha os valores
 python app.py
 ```
 
+As chaves e endereços ficam no arquivo `backend/.env`, que **não vai para o Git**
+(está no `.gitignore`); o modelo versionado é o [`.env.example`](backend/.env.example):
+
+| Variável | Para quê |
+|---|---|
+| `SECRET_KEY` | Assina os tokens JWT do login. Vazia, usa um valor só para desenvolvimento. |
+| `N8N_WEBHOOK_URL` | Webhook do agente de IA no n8n. Vazia, o chat avisa que a IA não está configurada. |
+| `N8N_API_KEY` | Opcional, se o webhook exigir o cabeçalho `X-API-Key`. |
+| `INVESTAI_HOST` | `127.0.0.1` (só este computador) ou `0.0.0.0` (celular na mesma rede). |
+
+A chave do Gemini não fica no projeto: ela é cadastrada como credencial dentro do n8n.
+
 A API sobe em `http://127.0.0.1:5000`. O banco SQLite (`investai.db`) é criado
 automaticamente na primeira execução. O arquivo `database/create_database.sql` traz o
-script equivalente para MySQL/MariaDB. Defina a variável de ambiente `SECRET_KEY` em
-produção (usada para assinar os tokens JWT).
+script equivalente para MySQL/MariaDB.
 
 ### 2. Frontend (Flutter)
 
