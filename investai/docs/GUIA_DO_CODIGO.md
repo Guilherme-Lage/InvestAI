@@ -7,9 +7,127 @@ onde está cada regra importante**.
 
 Tempo estimado: 20 minutos de leitura, mais 1 hora abrindo os arquivos indicados.
 
+> **Na apresentação a pergunta vai para qualquer um do grupo.** Todo mundo precisa
+> saber responder a [seção 1](#1-perguntas-que-podem-cair) sem consultar nada. Se o
+> tempo for curto, comece por ela e pela [seção 2](#2-limitações-conhecidas).
+
 ---
 
-## 1. O projeto em um minuto
+## 1. Perguntas que podem cair
+
+Respostas curtas, para falar em voz alta. Os detalhes estão nas seções indicadas.
+
+**Visão geral**
+
+- **Qual problema o app resolve?** A pessoa quer investir, mas não controla os gastos nem
+  tem reserva. O app guia na ordem certa: controlar gastos, montar a reserva e só depois
+  investir.
+- **Qual a regra principal?** Sugestões de investimento só aparecem quando a meta de
+  reserva de emergência chega a 3 vezes a despesa média mensal (RF14/RF15).
+- **Quais tecnologias?** Backend em Python com Flask (API REST), app em Flutter, banco
+  SQLite, login com JWT. O assistente de IA é um agente no n8n que usa o Gemini.
+- **Por que separar backend e app?** Toda regra fica num lugar só (o backend). O app só
+  mostra. Se amanhã surgir um app de iPhone ou um site, a regra não é reescrita.
+
+**Arquitetura (seções 5 e 6)**
+
+- **Como o backend é organizado?** Em quatro camadas: Controller recebe a requisição,
+  Service aplica a regra, Repository faz as consultas SQL, Model representa a tabela.
+- **Por que uma Service por caso de uso?** Cada arquivo faz uma coisa só, com um método
+  `executar()`. Fica fácil achar e testar cada regra.
+- **O que acontece quando o usuário registra um gasto?** A tela chama o `ApiService`, que
+  faz `POST /api/movimentacoes`. A Controller pega o usuário do token, a Service grava, e
+  o app pede o saldo de novo.
+- **Onde o saldo fica guardado?** Em lugar nenhum. É recalculado a cada pedido (rendas
+  menos gastos), então nunca fica desatualizado. Score, reserva e alertas são iguais.
+- **Quantas tabelas tem o banco?** Nove: `usuario`, `movimentacao`, `meta`,
+  `investimento`, `limite_categoria`, `token_revogado`, `recorrencia`, `score_historico`
+  e `transacao_importada`.
+- **Por que o banco não é igual ao DER do relatório?** O DER tem 7 entidades (Usuario,
+  Objetivo, Meta, Transacao, Categoria, Recomendacao_IA, Relatorio) e foi feito antes do
+  código. Na implementação: Transacao virou `movimentacao`; Objetivo e Meta viraram uma
+  tabela só (`meta`, com um campo `tipo`); Categoria virou um campo de texto na
+  movimentação, porque a lista é fixa; Relatorio e Recomendacao_IA não são guardados,
+  são calculados na hora, pelo mesmo motivo do saldo. As outras tabelas surgiram de
+  necessidades do código: limite por categoria (RF13), carteira de investimentos, logout
+  seguro e as extensões da seção 9.
+
+**Regras de cálculo (seção 7)**
+
+- **Como calcula a despesa média?** Gastos dos últimos 3 meses divididos por 3. Conta
+  nova, sem gasto nenhum, usa a estimativa do cadastro.
+- **Como funciona o score?** Vai de 0 a 1000, em quatro partes de 250: saldo positivo,
+  progresso da reserva, metas concluídas e controle de gastos (perde 80 por categoria
+  que estourou o limite).
+- **Quando aparece alerta?** Com 3 dias ou mais sem registrar gasto, ou quando o gasto do
+  mês numa categoria passa do limite definido.
+- **Como sugere o aporte de uma meta?** O que falta dividido pelos meses até o prazo,
+  mas nunca mais do que a pessoa consegue economizar no mês.
+- **As sugestões de investimento usam IA?** Não. São fixas por perfil (conservador,
+  moderado, arrojado) e mostram as taxas oficiais do dia (Banco Central e Tesouro
+  Direto).
+- **E se a API do Banco Central cair?** O backend guarda a última resposta em disco e
+  continua mostrando ela. As taxas também ficam em cache por 1 hora.
+
+**Segurança (seção 8)**
+
+- **Como a senha é guardada?** Não é. Guarda-se só o hash (função do Werkzeug). No login
+  compara-se o hash.
+- **Como uma pessoa não vê os dados da outra?** O `usuario_id` sai do token, nunca do que
+  o app envia. Não adianta trocar um número na requisição.
+- **Como funciona o logout se JWT não pode ser cancelado?** O identificador do token vai
+  para a tabela `token_revogado`, e toda rota recusa tokens que estão lá.
+- **E a LGPD?** Sem aceitar o termo não há cadastro, e o Perfil tem "Excluir conta", que
+  apaga todos os dados da pessoa.
+
+**Extensões (seção 9)**
+
+- **Como a recorrência é lançada se não tem nada rodando de madrugada?** Toda vez que o
+  usuário usa o app, o backend lança o que venceu. A coluna `ultimo_mes_lancado` impede
+  lançar duas vezes.
+- **Por que importar extrato em vez de conectar no banco?** Conexão direta (Open Finance)
+  exige autorização do Banco Central. O arquivo OFX o próprio banco fornece, e o app
+  nunca pede senha de banco.
+- **Importar o mesmo extrato duas vezes duplica?** Não. Cada transação tem um código do
+  banco, e os códigos já importados ficam guardados.
+- **Como a IA sabe da situação do usuário?** O backend manda junto com a pergunta um
+  resumo (saldo, reserva, se já pode investir). Sem isso a resposta seria genérica, que
+  foi a principal queixa da pesquisa.
+- **E se a IA estiver fora do ar?** O chat mostra um aviso e o resto do app funciona
+  normal.
+
+**Qualidade**
+
+- **Como sabem que funciona?** 165 testes automáticos no backend e testes de tela no
+  Flutter (seção 11). Os nomes dos testes descrevem o que o sistema garante.
+- **O que vocês fariam diferente / próximos passos?** Notificação de verdade no celular,
+  renovação do token, limite de tentativas de login e banco em servidor (MySQL), que já
+  tem o script pronto. Ver a seção 2.
+
+**Se não souber a resposta:** diga em qual arquivo ela está ("isso fica na Service de
+score, em `services/usuario/`"). Mostra que você conhece a estrutura, mesmo sem lembrar
+do detalhe.
+
+## 2. Limitações conhecidas
+
+Vale saber de cor, porque é melhor apontar do que ser pego de surpresa.
+
+- **RF12 fala em "notificação"** e o app mostra um alerta dentro da aba Relatório. Não
+  há notificação enviada ao aparelho.
+- **Recorrência lançada conta como despesa registrada**, então adia o alerta de
+  inatividade nos dias seguintes ao lançamento.
+- **O token expira em 8 horas** e não é renovado: depois disso o usuário faz login de
+  novo.
+- **O banco é SQLite**, um arquivo local, adequado a um projeto acadêmico. O script
+  `database/create_database.sql` traz o equivalente para MySQL.
+- **Não há limite de tentativas de login.**
+- **O valor guardado nas metas é só um número informado pelo usuário**: aportar em uma
+  meta não gera movimentação nem diminui o saldo.
+- **Importação de extrato** só aceita OFX e só funciona na versão web.
+- **As sugestões de investimento são educativas** e fixas por perfil. O app não executa
+  investimentos nem tem parceria com banco ou corretora.
+
+## 3. O projeto em um minuto
 
 - **Dois programas.** O `backend/` é uma API em Python (Flask) que guarda os dados e faz
   todas as contas. O `frontend_flutter/` é o app, que só mostra telas e chama a API.
@@ -20,7 +138,7 @@ Tempo estimado: 20 minutos de leitura, mais 1 hora abrindo os arquivos indicados
   usuário junta uma reserva de emergência de 3 vezes a sua despesa média mensal
   (RF14/RF15).
 
-## 2. Como rodar
+## 4. Como rodar
 
 ```bash
 # Terminal 1 — API
@@ -38,7 +156,7 @@ Para já entrar com dados prontos, rode `python criar_conta_demo.py` na pasta `b
 e use `demo@investai.com` / `Demo@1234`. Celular, assistente de IA e testes estão
 explicados no README.
 
-## 3. O mapa do backend: quatro camadas
+## 5. O mapa do backend: quatro camadas
 
 Toda funcionalidade passa pelas mesmas quatro pastas, sempre nesta ordem:
 
@@ -53,10 +171,10 @@ Duas convenções que valem para o projeto inteiro:
 
 - **Erro de validação é `ValueError`.** A Service levanta, a Controller transforma em
   resposta 400 com `{"erro": "mensagem"}`, e o app mostra essa mensagem ao usuário.
-- **O `usuario_id` nunca vem do app.** Ele sai do token de login (ver seção 6). Assim
+- **O `usuario_id` nunca vem do app.** Ele sai do token de login (ver seção 8). Assim
   ninguém consegue ler ou alterar dados de outra pessoa trocando um número na requisição.
 
-## 4. Siga uma funcionalidade do começo ao fim
+## 6. Siga uma funcionalidade do começo ao fim
 
 A melhor forma de entender a arquitetura é acompanhar um clique. Exemplo: **registrar
 uma despesa e ver o saldo mudar** (RF04 e RF05). Abra os arquivos na ordem:
@@ -88,7 +206,7 @@ real" no RF05. O mesmo vale para score, reserva e alertas.
 Todas as outras funcionalidades seguem esse desenho. Para achar qualquer uma, procure o
 endereço da rota no README e siga Controller → Service.
 
-## 5. Onde está cada regra de negócio
+## 7. Onde está cada regra de negócio
 
 São as contas que a banca mais tende a perguntar. Cada uma está em um arquivo pequeno
 dentro de `backend/services/`.
@@ -106,7 +224,7 @@ dentro de `backend/services/`.
 | Score (RF20) | De 0 a 1000, quatro critérios de 250 pontos: saldo positivo, progresso da reserva, metas concluídas e controle de gastos (perde 80 por categoria estourada) | `usuario/calcular_score_financeiro_service.py` |
 | Sugestões por perfil (RF18) | Lista fixa por perfil (conservador, moderado, arrojado), enriquecida com as taxas oficiais do dia | `usuario/gerar_guia_financeiro_service.py` |
 
-## 6. Login e segurança
+## 8. Login e segurança
 
 - **Senha.** Nunca é guardada. No cadastro vira um hash (`Usuario.definir_senha`, em
   [usuario.py](../backend/models/usuario.py)); no login compara-se o hash. Para ser
@@ -131,12 +249,12 @@ dentro de `backend/services/`.
   em [TERMO_DE_CONSENTIMENTO.md](TERMO_DE_CONSENTIMENTO.md) e o resumo mostrado no app em
   `services/usuario/termos_consentimento.py`.
 
-## 7. O que existe além dos RF01–RF20
+## 9. O que existe além dos RF01–RF20
 
 Cinco funcionalidades foram acrescentadas depois do relatório de requisitos. Na
-apresentação, convém dizer que são extensões. Três delas criaram tabelas que **não estão
-no DER original** de 7 entidades: `recorrencia`, `score_historico` e
-`transacao_importada`.
+apresentação, convém dizer que são extensões. Três delas criaram tabelas novas:
+`recorrencia`, `score_historico` e `transacao_importada` (as diferenças do banco em
+relação ao DER estão explicadas na seção 1).
 
 ### Recorrências (contas que se repetem todo mês)
 - **O que é.** O usuário cadastra aluguel, assinatura ou salário uma vez; o sistema lança
@@ -234,7 +352,7 @@ no DER original** de 7 entidades: `recorrencia`, `score_historico` e
 - **Se o n8n estiver fora do ar,** a rota responde com erro tratado e o chat mostra um
   aviso; o resto do app continua funcionando.
 
-## 8. O app Flutter
+## 10. O app Flutter
 
 - **Uma tela por arquivo**, em `lib/screens/`. As cinco abas são `dashboard_tab`
   (Início), `metas_tab`, `report_tab` (Relatório), `investimentos_tab` (Investir) e
@@ -249,7 +367,7 @@ no DER original** de 7 entidades: `recorrencia`, `score_historico` e
 - **Sessão expirada.** Se qualquer chamada responder 401, o `ApiService` limpa a sessão
   e leva o usuário para o login, de qualquer tela.
 
-## 9. Testes
+## 11. Testes
 
 ```bash
 cd backend && python -m unittest        # regras de negócio e rotas
@@ -266,7 +384,7 @@ cd frontend_flutter && flutter test     # modelos, sessão e telas
 - **Se mudar o que uma rota devolve,** regrave esse arquivo com
   `python -m tests.gerar_respostas_para_flutter` (na pasta `backend`).
 
-## 10. Receita para fazer uma mudança
+## 12. Receita para fazer uma mudança
 
 Para acrescentar uma funcionalidade nova, copie o formato de uma que já existe. A menor
 de todas é o limite por categoria (procure `limite_categoria` nas quatro pastas).
@@ -285,22 +403,3 @@ que já existe não**, porque o `db.create_all()` não altera tabelas antigas. P
 registre a coluna também em `COLUNAS_ACRESCENTADAS`, em
 [migracoes.py](../backend/models/migracoes.py): o backend a acrescenta ao subir, sem
 perder os dados.
-
-## 11. Limitações conhecidas
-
-Vale saber de cor, porque é melhor apontar do que ser pego de surpresa.
-
-- **RF12 fala em "notificação"** e o app mostra um alerta dentro da aba Relatório. Não
-  há notificação enviada ao aparelho.
-- **Recorrência lançada conta como despesa registrada**, então adia o alerta de
-  inatividade nos dias seguintes ao lançamento.
-- **O token expira em 8 horas** e não é renovado: depois disso o usuário faz login de
-  novo.
-- **O banco é SQLite**, um arquivo local, adequado a um projeto acadêmico. O script
-  `database/create_database.sql` traz o equivalente para MySQL.
-- **Não há limite de tentativas de login.**
-- **O valor guardado nas metas é só um número informado pelo usuário**: aportar em uma
-  meta não gera movimentação nem diminui o saldo.
-- **Importação de extrato** só aceita OFX e só funciona na versão web.
-- **As sugestões de investimento são educativas** e fixas por perfil. O app não executa
-  investimentos nem tem parceria com banco ou corretora.
