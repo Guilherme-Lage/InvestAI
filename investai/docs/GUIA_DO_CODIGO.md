@@ -40,6 +40,14 @@ Respostas curtas, para falar em voz alta. Os detalhes estão nas seções indica
   o app pede o saldo de novo.
 - **Onde o saldo fica guardado?** Em lugar nenhum. É recalculado a cada pedido (rendas
   menos gastos), então nunca fica desatualizado. Score, reserva e alertas são iguais.
+- **Explica um fluxograma.** Estão em [FLUXOGRAMAS.md](FLUXOGRAMAS.md). Consultar o
+  saldo: a tela chama a API, o `@token_obrigatorio` confere o token, a Controller chama
+  a Service, a Service pede ao Repository duas somas em SQL (rendas e gastos) e subtrai.
+  Definir limite: a Service valida, pergunta ao Repository se a categoria já tem limite
+  e manda a Model atualizar ou criar.
+- **Por que o fluxograma de entrada é o do limite, e não o de registrar gasto?** Porque
+  registrar gasto não precisa de consulta: a Service grava direto pela Model. O limite
+  passa por todas as camadas, inclusive o Repository.
 - **Quantas tabelas tem o banco?** Nove: `usuario`, `movimentacao`, `meta`,
   `investimento`, `limite_categoria`, `token_revogado`, `recorrencia`, `score_historico`
   e `transacao_importada`.
