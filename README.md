@@ -13,4 +13,6 @@ Documentação completa — arquitetura, models, rotas da API, checklist de RF01
 [`investai/README.md`](investai/README.md#funcionalidades-implementadas).
 
 O **diagrama de classes** está em
-[`investai/docs/DIAGRAMA_DE_CLASSES.md`](investai/docs/DIAGRAMA_DE_CLASSES.md).
+[`investai/docs/DIAGRAMA_DE_CLASSES.md`](investai/docs/DIAGRAMA_DE_CLASSES.md), e os
+**fluxogramas dos casos de uso** (recuperação e entrada de dados, passando por todas as
+camadas) em [`investai/docs/FLUXOGRAMAS.md`](investai/docs/FLUXOGRAMAS.md).
