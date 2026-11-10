@@ -141,7 +141,7 @@ class _DashboardTabState extends State<DashboardTab> {
                 child: _MetricaCard(
                   titulo: 'Sobrevivência s/ renda',
                   valor: _mesesSobrevivencia == null
-                      ? '—'
+                      ? '-'
                       : '${_mesesSobrevivencia!.toStringAsFixed(1)} meses',
                   icone: Icons.timelapse_rounded,
                   destaque: true,

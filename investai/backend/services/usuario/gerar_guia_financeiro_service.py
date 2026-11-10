@@ -36,7 +36,7 @@ SUGESTOES_POR_PERFIL = {
     ],
     "moderado": [
         {"nome": "Tesouro IPCA+", "tipo": "Renda fixa", "liquidez": "no vencimento", "indexador": "ipca",
-         "motivo": "Ele garante que seu dinheiro cresça acima da inflação — daqui "
+         "motivo": "Ele garante que seu dinheiro cresça acima da inflação: daqui "
                    "a alguns anos ele ainda vai comprar mais do que compra hoje. "
                    "Em troca, o ideal é deixar até a data de vencimento.",
          "descricao_base": "Protege da inflação, bom para metas de médio/longo prazo."},
@@ -48,7 +48,7 @@ SUGESTOES_POR_PERFIL = {
     "arrojado": [
         {"nome": "Fundos de ações", "tipo": "Renda variável", "liquidez": "diaria", "indexador": None,
          "motivo": "Você aceita oscilação em troca de retorno maior. Aqui o valor "
-                   "sobe e desce no caminho — por isso faz sentido só para o "
+                   "sobe e desce no caminho, por isso faz sentido só para o "
                    "dinheiro que você não vai precisar tão cedo.",
          "descricao_base": "Maior potencial de retorno no longo prazo, com mais volatilidade."},
         {"nome": "ETFs de índice (ex.: IBOV)", "tipo": "Renda variável", "liquidez": "diaria", "indexador": None,

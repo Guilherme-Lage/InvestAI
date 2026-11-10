@@ -195,11 +195,11 @@ class _CadastroScreenState extends State<CadastroScreen> {
   String get _subtituloEtapa {
     switch (_etapa) {
       case 0:
-        return 'Passo 1 de $_totalEtapas — Seus dados';
+        return 'Passo 1 de $_totalEtapas: Seus dados';
       case 1:
-        return 'Passo 2 de $_totalEtapas — Renda e gastos';
+        return 'Passo 2 de $_totalEtapas: Renda e gastos';
       default:
-        return 'Passo 3 de $_totalEtapas — Perfil de investidor';
+        return 'Passo 3 de $_totalEtapas: Perfil de investidor';
     }
   }
 
@@ -599,7 +599,7 @@ class _EtapaFinanceiraState extends State<_EtapaFinanceira> {
           const SizedBox(height: 6),
           Text(
             'Não precisa ser exato. É só para calcularmos sua reserva de '
-            'emergência — depois ajustamos com seus gastos reais.',
+            'emergência. Depois ajustamos com seus gastos reais.',
             style: GoogleFonts.inter(fontSize: 14, color: InvestAITheme.cinza),
           ),
           const SizedBox(height: 32),

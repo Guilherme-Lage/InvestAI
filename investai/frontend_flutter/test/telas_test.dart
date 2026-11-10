@@ -29,7 +29,7 @@ void main() {
           DashboardTab(usuario: _usuario(api), onVerTodasMetas: () {}),
           tamanho: tamanho,
         );
-        expect(find.textContaining('Olá, Marina'), findsOneWidget);
+        expect(find.textContaining('Olá, Guilherme'), findsOneWidget);
         expect(find.text('Saldo disponível'), findsOneWidget);
       });
 
@@ -42,7 +42,7 @@ void main() {
       testeDeTela('Relatório', (tester, api) async {
         await montarTela(tester, api, const ReportTab(), tamanho: tamanho);
         expect(find.text('Relatório'), findsOneWidget);
-        expect(find.text('Lazer no limite'), findsOneWidget);
+        expect(find.text('Gastos por categoria'), findsOneWidget);
         expect(find.byTooltip('Importar extrato do banco'), findsOneWidget);
         expect(find.byTooltip('Receitas e despesas recorrentes'), findsOneWidget);
         expect(find.byTooltip('Exportar relatório (PDF ou CSV)'), findsOneWidget);
@@ -61,7 +61,7 @@ void main() {
           PerfilTab(usuario: _usuario(api), aoAtualizarUsuario: (_) {}),
           tamanho: tamanho,
         );
-        expect(find.textContaining('Marina'), findsWidgets);
+        expect(find.textContaining('Guilherme'), findsWidgets);
       });
 
       testeDeTela('Recorrentes', (tester, api) async {

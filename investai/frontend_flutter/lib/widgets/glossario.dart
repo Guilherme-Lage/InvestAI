@@ -22,7 +22,7 @@ class Glossario {
         'outros. Na prática ela anda quase colada na Selic, e é usada como '
         'régua: um CDB que paga "100% do CDI" rende mais ou menos isso.',
     'ipca': 'É o índice oficial da inflação no Brasil. Se ele está em 4% ao '
-        'ano, significa que o que custava R\$ 100 passou a custar R\$ 104 — e '
+        'ano, significa que o que custava R\$ 100 passou a custar R\$ 104, e '
         'seu dinheiro precisa render pelo menos isso para não encolher.',
     'fgc': 'Fundo Garantidor de Créditos. Se o banco onde você investiu '
         'quebrar, ele devolve o seu dinheiro até R\$ 250 mil por banco. É uma '
@@ -34,14 +34,14 @@ class Glossario {
         'resgatar. Investimentos com carência costumam render um pouco mais '
         'justamente por isso.',
     'renda fixa': 'São investimentos em que você sabe desde o começo como o '
-        'rendimento é calculado. O valor não fica oscilando como na bolsa — '
+        'rendimento é calculado. O valor não fica oscilando como na bolsa, '
         'por isso é o tipo indicado para reserva e para quem está começando.',
     'renda variável': 'São investimentos cujo valor sobe e desce o tempo todo, '
         'como ações. Podem render mais no longo prazo, mas você pode ver o '
         'valor cair no meio do caminho.',
     'tesouro selic': 'É um título público que acompanha a taxa Selic. Você '
         'empresta dinheiro para o governo e pode resgatar em qualquer dia '
-        'útil sem perder o que já rendeu — por isso é o mais usado para '
+        'útil sem perder o que já rendeu, por isso é o mais usado para '
         'reserva de emergência.',
     'tesouro ipca+': 'É um título público que paga a inflação mais um juro '
         'fixo. Garante que seu dinheiro cresça acima da alta dos preços, mas '
@@ -51,7 +51,7 @@ class Glossario {
     'juro real': 'É o quanto o seu dinheiro rende de verdade, já descontando '
         'a inflação. Render 10% com inflação de 4% significa um juro real de '
         'cerca de 6%.',
-    'reserva de emergência': 'É o dinheiro guardado para imprevistos — perder '
+    'reserva de emergência': 'É o dinheiro guardado para imprevistos: perder '
         'o emprego, consertar o carro, uma emergência de saúde. O recomendado '
         'é ter o equivalente a 3 meses das suas despesas antes de investir em '
         'outras coisas.',

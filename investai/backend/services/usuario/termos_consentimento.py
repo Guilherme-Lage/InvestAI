@@ -22,7 +22,7 @@ ITENS = [
         "titulo": "O que coletamos",
         "texto": "Nome, e-mail, renda mensal, despesas, metas e os "
                  "investimentos que você cadastrar ou importar. A senha é guardada "
-                 "apenas como código embaralhado (hash) — nem nós "
+                 "apenas como código embaralhado (hash), e nem nós "
                  "conseguimos lê-la.",
     },
     {

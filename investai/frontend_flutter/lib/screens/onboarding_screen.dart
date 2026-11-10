@@ -61,7 +61,7 @@ const List<_Passo> _passos = [
     titulo: 'Proteger',
     texto: 'Depois vem a reserva de emergência: o equivalente a 3 meses das '
         'suas despesas, guardado para imprevistos. É por isso que as '
-        'sugestões de investimento ficam bloqueadas até aqui — investir sem '
+        'sugestões de investimento ficam bloqueadas até aqui: investir sem '
         'reserva costuma virar dívida quando algo dá errado.',
   ),
   _Passo(

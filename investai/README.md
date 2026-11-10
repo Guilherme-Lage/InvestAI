@@ -361,7 +361,7 @@ python criar_conta_demo.py
 ```
 
 Cria a conta `demo@investai.com` (senha `Demo@1234`) com três meses de movimentações,
-recorrências, metas, reserva de emergência pela metade, um limite estourado e histórico
+recorrências, metas, reserva de emergência pela metade, um limite de gasto e histórico
 de score. Todos os dados são fictícios — inclusive os pontos antigos do score, que o
 sistema não tem como calcular para trás. Rodar de novo recria só essa conta, com as
 datas atualizadas; as demais não são tocadas.

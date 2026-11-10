@@ -33,7 +33,9 @@ class TesteContaDemo(TesteComBanco):
 
         alertas = GerarAlertasService().executar(usuario_id)
         self.assertFalse(alertas["alerta_inatividade"])
-        self.assertEqual([a["categoria"] for a in alertas["alertas_categoria"]], ["lazer"])
+        # Nenhum limite estourado: o alerta de categoria é mostrado ao vivo,
+        # lançando um gasto de alimentação na demonstração.
+        self.assertEqual(alertas["alertas_categoria"], [])
 
         # Reserva incompleta: investimentos seguem bloqueados (RF14/RF15).
         reserva = CalcularStatusReservaEmergenciaService().executar(usuario_id)

@@ -54,7 +54,7 @@ class SugerirOndeGuardarReservaService:
                 # característica do produto: 85% dos participantes da
                 # pesquisa declararam pouco ou nenhum conhecimento.
                 "motivo": "Você pode sacar em qualquer dia útil sem perder o "
-                          "que já rendeu — que é exatamente o que uma reserva "
+                          "que já rendeu, que é exatamente o que uma reserva "
                           "precisa fazer quando aparece um imprevisto.",
                 "descricao": "Resgate em qualquer dia útil, sem perder o que "
                              "já rendeu. É o mais usado para reserva.",

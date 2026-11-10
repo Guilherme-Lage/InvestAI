@@ -49,7 +49,7 @@ GASTOS_DO_MES = [
     (24, "Supermercado", 340.00, "alimentacao"),
 ]
 
-LIMITES = [("lazer", 400.00), ("alimentacao", 1200.00)]
+LIMITES = [("alimentacao", 1200.00)]
 
 # Retratos antigos do score: (dias atrás, pontos abaixo do score de hoje).
 # O score real não pode ser recalculado para o passado, então a subida é
@@ -66,7 +66,7 @@ def criar_conta_demo():
         DeletarUsuarioService().executar(existente["id"])
 
     usuario_id = CriarUsuarioService().executar({
-        "nome": "Marina Demonstração",
+        "nome": "Guilherme",
         "email": EMAIL_DEMO,
         "senha": SENHA_DEMO,
         "perfil_risco": "moderado",
@@ -94,8 +94,8 @@ def criar_conta_demo():
 
     _movimentacao(usuario_id, "Freela de design", "renda", 600.00,
                   _dia(hoje, meses_atras=1, dia=18), "freelance")
-    # Lançado hoje de propósito: estoura o limite de lazer do mês (RF13)
-    # em qualquer dia em que o script rode, e evita o alerta de inatividade.
+    # Lançado hoje de propósito: evita o alerta de inatividade em qualquer
+    # dia em que o script rode.
     _movimentacao(usuario_id, "Ingresso de show", "gasto", 480.00, hoje, "lazer")
 
     for categoria, valor_limite in LIMITES:

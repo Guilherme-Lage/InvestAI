@@ -288,7 +288,7 @@ class _ReportTabState extends State<ReportTab> {
           icone: Icons.warning_amber_rounded,
           titulo: '${Categorias.rotulo(a['categoria'])} no limite',
           mensagem: '${_reais(a['gasto_atual'])} de ${_reais(a['limite'])} '
-              '(${((a['gasto_atual'] as num) / (a['limite'] as num) * 100).toStringAsFixed(0)}% do limite)',
+              '(${((a['gasto_atual'] as num) / (a['limite'] as num) * 100 - 100).toStringAsFixed(0)}% acima do limite)',
         ),
       const SizedBox(height: 20),
     ];
