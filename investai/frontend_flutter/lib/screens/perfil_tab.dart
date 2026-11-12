@@ -3,10 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/usuario.dart';
 import '../models/movimentacao.dart';
 import '../models/limite_categoria.dart';
+import '../models/suitability.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../utils/formato_moeda.dart';
+import '../widgets/aviso_questionario_pendente.dart';
 import 'login_screen.dart';
+import 'questionario_suitability_screen.dart';
 
 /// RF18 - perfil de investidor; RF13 - limites de gasto por categoria;
 /// dados da conta e logout (RF02). Layout em menu com avatar, no mesmo
@@ -23,18 +26,6 @@ class PerfilTab extends StatefulWidget {
 
 class _PerfilTabState extends State<PerfilTab> {
   List<LimiteCategoria> _limites = [];
-
-  static const _perfis = [
-    ('conservador', 'Conservador', Icons.shield_outlined),
-    ('moderado', 'Moderado', Icons.balance_outlined),
-    ('arrojado', 'Arrojado', Icons.rocket_launch_outlined),
-  ];
-
-  static const _rotulosPerfil = {
-    'conservador': 'Conservador',
-    'moderado': 'Moderado',
-    'arrojado': 'Arrojado',
-  };
 
   @override
   void initState() {
@@ -60,8 +51,18 @@ class _PerfilTabState extends State<PerfilTab> {
     return (primeira + ultima).toUpperCase();
   }
 
-  Future<void> _abrirPerfilInvestidor() async {
-    String perfilSelecionado = widget.usuario.perfilRisco;
+  /// RF18 - o perfil de investidor só muda pelo questionário de
+  /// suitability, nunca escolhido direto.
+  Future<void> _abrirQuestionario() async {
+    final atualizado = await Navigator.of(context).push<Usuario>(
+      MaterialPageRoute(
+        builder: (_) => QuestionarioSuitabilityScreen(usuario: widget.usuario),
+      ),
+    );
+    if (atualizado != null) widget.aoAtualizarUsuario(atualizado);
+  }
+
+  Future<void> _abrirRenda() async {
     final rendaCtrl = TextEditingController(text: widget.usuario.rendaMensal.toStringAsFixed(2));
     bool salvando = false;
     String? erro;
@@ -88,45 +89,12 @@ class _PerfilTabState extends State<PerfilTab> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Perfil de investidor',
+                Text('Renda mensal',
                     style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
                 const SizedBox(height: 6),
-                Text('Usado para personalizar suas recomendações (RF18).',
+                Text('Usada no cálculo da sua reserva e das orientações.',
                     style: GoogleFonts.inter(fontSize: 12.5, color: InvestAITheme.cinza)),
                 const SizedBox(height: 20),
-                for (final (valor, label, icone) in _perfis)
-                  GestureDetector(
-                    onTap: () => setModalState(() => perfilSelecionado = valor),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: perfilSelecionado == valor
-                            ? InvestAITheme.verde.withOpacity(0.1)
-                            : InvestAITheme.card,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: perfilSelecionado == valor ? InvestAITheme.verde : InvestAITheme.borda),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(icone,
-                              color: perfilSelecionado == valor ? InvestAITheme.verde : InvestAITheme.cinza,
-                              size: 20),
-                          const SizedBox(width: 12),
-                          Text(label,
-                              style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: perfilSelecionado == valor ? InvestAITheme.verde : InvestAITheme.texto)),
-                          const Spacer(),
-                          if (perfilSelecionado == valor)
-                            const Icon(Icons.check_circle_rounded, color: InvestAITheme.verde, size: 18),
-                        ],
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 6),
                 TextFormField(
                   controller: rendaCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -151,7 +119,6 @@ class _PerfilTabState extends State<PerfilTab> {
                             final renda =
                                 valorDigitado(rendaCtrl.text) ?? widget.usuario.rendaMensal;
                             final usuario = await ApiService.atualizarUsuario(widget.usuario.id!, {
-                              'perfil_risco': perfilSelecionado,
                               'renda_mensal': renda,
                             });
                             widget.aoAtualizarUsuario(usuario);
@@ -245,11 +212,24 @@ class _PerfilTabState extends State<PerfilTab> {
         ),
         const SizedBox(height: 28),
 
+        if (!widget.usuario.suitabilityRespondido) ...[
+          AvisoQuestionarioPendente(onResponder: _abrirQuestionario),
+          const SizedBox(height: 14),
+        ],
         _ItemMenu(
           icone: Icons.trending_up_rounded,
           titulo: 'Perfil de investidor',
-          subtitulo: _rotulosPerfil[widget.usuario.perfilRisco] ?? widget.usuario.perfilRisco,
-          onTap: _abrirPerfilInvestidor,
+          subtitulo: widget.usuario.suitabilityRespondido
+              ? rotulosPerfilInvestidor[widget.usuario.perfilRisco] ?? widget.usuario.perfilRisco
+              : 'Pendente',
+          corSubtitulo: widget.usuario.suitabilityRespondido ? null : InvestAITheme.amarelo,
+          onTap: _abrirQuestionario,
+        ),
+        _ItemMenu(
+          icone: Icons.attach_money_rounded,
+          titulo: 'Renda mensal',
+          subtitulo: 'R\$ ${widget.usuario.rendaMensal.toStringAsFixed(2).replaceAll('.', ',')}',
+          onTap: _abrirRenda,
         ),
         _ItemMenu(
           icone: Icons.notifications_outlined,
@@ -385,6 +365,7 @@ class _ItemMenu extends StatelessWidget {
   final VoidCallback? onTap;
   final bool habilitado;
   final Color? cor;
+  final Color? corSubtitulo;
 
   const _ItemMenu({
     required this.icone,
@@ -393,6 +374,7 @@ class _ItemMenu extends StatelessWidget {
     this.onTap,
     this.habilitado = true,
     this.cor,
+    this.corSubtitulo,
   });
 
   @override
@@ -421,7 +403,8 @@ class _ItemMenu extends StatelessWidget {
                       style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: corPrincipal)),
                 ),
                 if (subtitulo != null)
-                  Text(subtitulo!, style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza)),
+                  Text(subtitulo!,
+                      style: GoogleFonts.inter(fontSize: 12, color: corSubtitulo ?? InvestAITheme.cinza)),
                 if (habilitado && onTap != null) ...[
                   const SizedBox(width: 6),
                   const Icon(Icons.chevron_right_rounded, color: InvestAITheme.cinza, size: 18),

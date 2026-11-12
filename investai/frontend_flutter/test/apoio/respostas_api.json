@@ -691,8 +691,86 @@
   "email": "demo@investai.com",
   "id": 1,
   "nome": "Guilherme",
-  "perfil_risco": "moderado",
-  "renda_mensal": 5200.0
+  "perfil_risco": "conservador",
+  "renda_mensal": 5200.0,
+  "suitability_em": null,
+  "suitability_pontuacao": null,
+  "suitability_respondido": false
+ },
+ "/api/usuarios/suitability": {
+  "perguntas": [
+   {
+    "id": "objetivo",
+    "opcoes": [
+     "Proteger o que já tenho, sem correr riscos",
+     "Ganhar um pouco acima da poupança, com segurança",
+     "Fazer o dinheiro crescer, aceitando alguma oscilação",
+     "Buscar o maior retorno possível, mesmo com risco alto"
+    ],
+    "texto": "Qual é o seu principal objetivo ao investir?"
+   },
+   {
+    "id": "prazo",
+    "opcoes": [
+     "Menos de 1 ano",
+     "De 1 a 3 anos",
+     "De 3 a 5 anos",
+     "Mais de 5 anos"
+    ],
+    "texto": "Por quanto tempo você pretende deixar o dinheiro investido?"
+   },
+   {
+    "id": "reacao_queda",
+    "opcoes": [
+     "Resgataria tudo na hora",
+     "Resgataria uma parte para não perder mais",
+     "Manteria e esperaria recuperar",
+     "Aproveitaria para investir mais"
+    ],
+    "texto": "Se seus investimentos caíssem 15% em um mês, o que você faria?"
+   },
+   {
+    "id": "conhecimento",
+    "opcoes": [
+     "Nenhum: nunca investi",
+     "Básico: conheço poupança, CDB e Tesouro",
+     "Intermediário: já investi em fundos ou ações",
+     "Avançado: acompanho o mercado com frequência"
+    ],
+    "texto": "Como você descreve seu conhecimento sobre investimentos?"
+   },
+   {
+    "id": "experiencia",
+    "opcoes": [
+     "Só poupança, ou nunca investi",
+     "Renda fixa (CDB, Tesouro, LCI/LCA)",
+     "Fundos multimercado ou fundos imobiliários",
+     "Ações, ETFs, criptomoedas ou derivativos"
+    ],
+    "texto": "Em quais destes você já investiu?"
+   },
+   {
+    "id": "parcela_patrimonio",
+    "opcoes": [
+     "Nada",
+     "Até 10%",
+     "De 10% a 30%",
+     "Mais de 30%"
+    ],
+    "texto": "Quanto do seu patrimônio você pensa em aplicar em investimentos de maior risco?"
+   },
+   {
+    "id": "necessidade_resgate",
+    "opcoes": [
+     "Alta: posso precisar a qualquer momento",
+     "Média: talvez precise em alguns meses",
+     "Baixa: tenho reserva para imprevistos",
+     "Muito baixa: é um dinheiro que não vou usar tão cedo"
+    ],
+    "texto": "Qual a chance de você precisar desse dinheiro de repente?"
+   }
+  ],
+  "versao": "1.0"
  },
  "POST /api/importacao/analisar": {
   "ajuste_saldo": null,

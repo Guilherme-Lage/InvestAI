@@ -26,6 +26,14 @@ class Usuario(ModeloBase):
     consentimento_versao = db.Column(db.String(10))
     consentimento_em = db.Column(db.DateTime)
 
+    # Questionário de suitability (RF18). Enquanto não for respondido, o
+    # perfil fica no padrão mais cauteloso (conservador) e o app lembra a
+    # pessoa de completar o questionário.
+    suitability_respondido = db.Column(db.Boolean, nullable=False, default=False)
+    suitability_pontuacao = db.Column(db.Integer)
+    suitability_versao = db.Column(db.String(10))
+    suitability_em = db.Column(db.DateTime)
+
     movimentacoes = db.relationship(
         "Movimentacao", back_populates="usuario", cascade="all, delete-orphan"
     )
@@ -95,7 +103,22 @@ class Usuario(ModeloBase):
             "consentimento_em": (
                 self.consentimento_em.isoformat() if self.consentimento_em else None
             ),
+            "suitability_respondido": bool(self.suitability_respondido),
+            "suitability_pontuacao": self.suitability_pontuacao,
+            "suitability_em": (
+                self.suitability_em.isoformat() if self.suitability_em else None
+            ),
         }
+
+    def registrar_suitability(self, perfil, pontuacao, versao, quando):
+        """Grava o resultado do questionário: o perfil de investidor passa
+        a ser o calculado a partir das respostas."""
+        self.perfil_risco = perfil
+        self.suitability_respondido = True
+        self.suitability_pontuacao = pontuacao
+        self.suitability_versao = versao
+        self.suitability_em = quando
+        return self.salvar()
 
     def __repr__(self):
         return f"<Usuario {self.nome}>"

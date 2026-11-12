@@ -2,8 +2,11 @@ from models import Usuario
 
 
 class AtualizarUsuarioService:
-    """RF18 - também usada para atualizar o perfil de investidor
-    (conservador/moderado/arrojado) e a renda mensal do usuário."""
+    """Atualiza nome, e-mail e renda mensal do usuário.
+
+    O perfil de investidor (RF18) não é alterado aqui: ele só muda pelo
+    questionário de suitability (ResponderSuitabilityService), para não
+    ser escolhido sem análise."""
 
     def executar(self, usuario_id, dados):
         usuario = Usuario.buscar_por_id(usuario_id)
@@ -15,7 +18,6 @@ class AtualizarUsuarioService:
         usuario.atualizar(
             nome=dados.get("nome"),
             email=dados.get("email"),
-            perfil_risco=dados.get("perfil_risco"),
             renda_mensal=float(renda_mensal) if renda_mensal is not None else None,
             despesa_mensal_estimada=(
                 float(despesa_estimada) if despesa_estimada is not None else None

@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS usuario (
     consentimento_aceito    BOOLEAN      NOT NULL DEFAULT FALSE,
     consentimento_versao    VARCHAR(10),
     consentimento_em        DATETIME,
+    suitability_respondido  BOOLEAN      NOT NULL DEFAULT FALSE,
+    suitability_pontuacao   INT,
+    suitability_versao      VARCHAR(10),
+    suitability_em          DATETIME,
     data_criacao      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
                                     ON UPDATE CURRENT_TIMESTAMP

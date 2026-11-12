@@ -136,11 +136,13 @@ exigem `Authorization: Bearer <token>` e operam sobre o usuário autenticado.
 
 | Método | Rota | Ação |
 |--------|------|------|
-| POST | `/api/usuarios` | Criar conta (nome, e-mail, senha) |
+| POST | `/api/usuarios` | Criar conta (nome, e-mail, senha; `respostas_suitability` opcional) |
+| GET | `/api/usuarios/suitability` | Perguntas do questionário de suitability (público) (RF18) |
+| POST | `/api/usuarios/<id>/suitability` | Responder o questionário; calcula e grava o perfil (RF18) |
 | POST | `/api/usuarios/login` | Login (e-mail + senha), devolve token JWT |
 | POST | `/api/usuarios/logout` | Logout seguro (revoga o token) |
 | GET | `/api/usuarios/me` | Dados do usuário autenticado |
-| PUT | `/api/usuarios/<id>` | Atualizar perfil de investidor / renda mensal (RF18) |
+| PUT | `/api/usuarios/<id>` | Atualizar nome, e-mail e renda mensal (o perfil só muda pelo questionário) |
 | DELETE | `/api/usuarios/<id>` | Excluir a própria conta e todos os dados dela; exige `{"senha": ...}` |
 
 ### Movimentações (RF03–RF05, RF08–RF13, RF19)
@@ -249,7 +251,7 @@ app mostra o aviso no chat — nada quebra.
 | RF14/RF15 | Reserva de emergência antes de liberar investimentos | `services/meta/calcular_status_reserva_emergencia_service.py` |
 | RF16 | Guia financeiro passo a passo | `services/usuario/gerar_guia_financeiro_service.py` |
 | RF17 | Aporte sugerido ajustado à capacidade de economia | `services/meta/listar_metas_service.py` |
-| RF18 | Perfil de investidor (conservador/moderado/arrojado) | cadastro + aba Perfil |
+| RF18 | Perfil de investidor (conservador/moderado/arrojado) definido por questionário de suitability | cadastro (pode pular) + aviso no Início + aba Perfil |
 | RF19 | Histórico com filtro por período e categoria | `services/movimentacao/listar_movimentacoes_service.py` / aba Relatório |
 | RF20 | Score financeiro (0–1000) | `services/usuario/calcular_score_financeiro_service.py` |
 

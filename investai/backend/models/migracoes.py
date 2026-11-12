@@ -7,6 +7,10 @@ from sqlalchemy import inspect, text
 # tabela existente, ponha-a aqui também: (tabela, coluna, tipo SQL).
 COLUNAS_ACRESCENTADAS = [
     ("transacao_importada", "movimentacao_id", "INTEGER"),
+    ("usuario", "suitability_respondido", "BOOLEAN NOT NULL DEFAULT 0"),
+    ("usuario", "suitability_pontuacao", "INTEGER"),
+    ("usuario", "suitability_versao", "VARCHAR(10)"),
+    ("usuario", "suitability_em", "DATETIME"),
 ]
 
 

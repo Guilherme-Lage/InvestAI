@@ -2,10 +2,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../models/suitability.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../utils/formato_moeda.dart';
 import '../utils/validacao_senha.dart';
+import '../widgets/questionario_suitability.dart';
 import 'onboarding_screen.dart';
 import 'termo_completo_screen.dart';
 
@@ -36,18 +38,25 @@ class _CadastroScreenState extends State<CadastroScreen> {
     for (final campo in _camposDespesa) campo.chave: TextEditingController()
   };
 
-  String _perfilRisco = 'moderado';
   bool _carregando = false;
   bool _termosAceitos = false;
   String? _erro;
+
+  /// Respostas do questionário de suitability, ou null se a pessoa pulou.
+  /// O perfil é calculado no backend ao criar a conta.
+  Map<String, int>? _respostasSuitability;
+  Future<List<PerguntaSuitability>>? _perguntasSuitability;
 
   /// Valor vindo do botão "Não sei estimar agora". Fica fora dos campos de
   /// categoria porque aqui só sabemos o total, não a composição - e afirmar
   /// que tudo é fixo faria o guia concluir que não há o que cortar.
   double? _despesaEstimadaAuto;
-  int _etapa = 0; // 0 = dados pessoais, 1 = renda e gastos, 2 = perfil
 
-  static const int _totalEtapas = 3;
+  // 0 = dados pessoais, 1 = renda e gastos, 2 = questionário de
+  // suitability (pode pular), 3 = termos e confirmação.
+  int _etapa = 0;
+
+  static const int _totalEtapas = 4;
 
   @override
   void dispose() {
@@ -119,8 +128,35 @@ class _CadastroScreenState extends State<CadastroScreen> {
     if (_etapa == 0 && _validarEtapa0()) {
       setState(() => _etapa = 1);
     } else if (_etapa == 1 && _validarEtapa1()) {
-      setState(() => _etapa = 2);
+      _abrirQuestionario();
     }
+  }
+
+  void _abrirQuestionario() {
+    setState(() {
+      _erro = null;
+      _respostasSuitability = null;
+      _perguntasSuitability ??= ApiService.questionarioSuitability();
+      _etapa = 2;
+    });
+  }
+
+  void _tentarCarregarQuestionario() {
+    setState(() => _perguntasSuitability = ApiService.questionarioSuitability());
+  }
+
+  void _concluirQuestionario(Map<String, int> respostas) {
+    setState(() {
+      _respostasSuitability = respostas;
+      _etapa = 3;
+    });
+  }
+
+  void _pularQuestionario() {
+    setState(() {
+      _respostasSuitability = null;
+      _etapa = 3;
+    });
   }
 
   /// Estima os gastos a partir da renda, para quem não faz ideia de quanto
@@ -164,11 +200,11 @@ class _CadastroScreenState extends State<CadastroScreen> {
       nome: _nomeController.text.trim(),
       email: _emailController.text.trim(),
       senha: _senhaController.text,
-      perfilRisco: _perfilRisco,
       rendaMensal: _renda,
       despesaMensalEstimada: _totalDespesas,
       despesaFixaEstimada: _despesaFixa,
       consentimentoAceito: _termosAceitos,
+      respostasSuitability: _respostasSuitability,
     );
 
     if (!mounted) return;
@@ -198,8 +234,10 @@ class _CadastroScreenState extends State<CadastroScreen> {
         return 'Passo 1 de $_totalEtapas: Seus dados';
       case 1:
         return 'Passo 2 de $_totalEtapas: Renda e gastos';
-      default:
+      case 2:
         return 'Passo 3 de $_totalEtapas: Perfil de investidor';
+      default:
+        return 'Passo 4 de $_totalEtapas: Confirmação';
     }
   }
 
@@ -298,15 +336,23 @@ class _CadastroScreenState extends State<CadastroScreen> {
                       onEstimarPelaRenda: _estimarPelaRenda,
                       onEditarCategoria: _aoEditarCategoria,
                     ),
-                  _ => _EtapaPerfil(
+                  2 => _EtapaQuestionario(
                       key: const ValueKey(2),
-                      perfilSelecionado: _perfilRisco,
+                      perguntas: _perguntasSuitability!,
+                      respostasIniciais: _respostasSuitability,
+                      aoConcluir: _concluirQuestionario,
+                      aoPular: _pularQuestionario,
+                      aoTentarDeNovo: _tentarCarregarQuestionario,
+                    ),
+                  _ => _EtapaConfirmacao(
+                      key: const ValueKey(3),
+                      respondeuQuestionario: _respostasSuitability != null,
                       erro: _erro,
                       carregando: _carregando,
                       termosAceitos: _termosAceitos,
                       onTermosChange: (v) =>
                           setState(() => _termosAceitos = v),
-                      onPerfilChange: (v) => setState(() => _perfilRisco = v),
+                      onResponderQuestionario: _abrirQuestionario,
                       onCadastrar: _cadastrar,
                     ),
                 },
@@ -754,12 +800,16 @@ class _ResumoDespesas extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                estimado ? 'Estimativa por mês' : 'Total por mês',
-                style: GoogleFonts.inter(
-                    fontSize: 13, color: InvestAITheme.cinza),
+              // Flexível: em tela estreita o rótulo quebra a linha em vez
+              // de empurrar o valor para fora do cartão.
+              Expanded(
+                child: Text(
+                  estimado ? 'Estimativa por mês' : 'Total por mês',
+                  style: GoogleFonts.inter(
+                      fontSize: 13, color: InvestAITheme.cinza),
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Text(
                 reais(total),
                 style: GoogleFonts.inter(
@@ -800,58 +850,135 @@ class _ResumoDespesas extends StatelessWidget {
   }
 }
 
-// ── Etapa 2: Perfil de investidor ────────────────────────────────────────────
+// ── Etapa 2: Questionário de suitability ─────────────────────────────────────
 
-class _EtapaPerfil extends StatelessWidget {
-  final String perfilSelecionado;
+/// RF18 - o perfil de investidor sai do questionário. Pode ser pulado: a
+/// conta é criada com o perfil conservador e o app lembra a pessoa de
+/// responder depois.
+class _EtapaQuestionario extends StatelessWidget {
+  final Future<List<PerguntaSuitability>> perguntas;
+  final Map<String, int>? respostasIniciais;
+  final ValueChanged<Map<String, int>> aoConcluir;
+  final VoidCallback aoPular;
+  final VoidCallback aoTentarDeNovo;
+
+  const _EtapaQuestionario({
+    super.key,
+    required this.perguntas,
+    this.respostasIniciais,
+    required this.aoConcluir,
+    required this.aoPular,
+    required this.aoTentarDeNovo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Perfil de investidor',
+                style: GoogleFonts.inter(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: InvestAITheme.texto,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Algumas perguntas rápidas para descobrir quais investimentos '
+                'combinam com você.',
+                style: GoogleFonts.inter(fontSize: 14, color: InvestAITheme.cinza),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Expanded(
+          child: FutureBuilder<List<PerguntaSuitability>>(
+            future: perguntas,
+            builder: (context, snap) {
+              if (snap.connectionState != ConnectionState.done) {
+                return const Center(
+                  child: CircularProgressIndicator(color: InvestAITheme.verde),
+                );
+              }
+              if (snap.hasError || snap.data == null || snap.data!.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const _ErroCard(
+                        mensagem: 'Não consegui carregar o questionário. '
+                            'Verifique a conexão.',
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: aoTentarDeNovo,
+                        child: const Text('Tentar novamente'),
+                      ),
+                      TextButton(
+                        onPressed: aoPular,
+                        child: const Text('Pular por enquanto'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return QuestionarioSuitability(
+                perguntas: snap.data!,
+                respostasIniciais: respostasIniciais,
+                aoConcluir: aoConcluir,
+                aoPular: aoPular,
+                textoConcluir: 'Continuar',
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Etapa 3: Termos e confirmação ────────────────────────────────────────────
+
+class _EtapaConfirmacao extends StatelessWidget {
+  final bool respondeuQuestionario;
   final String? erro;
   final bool carregando;
   final bool termosAceitos;
   final ValueChanged<bool> onTermosChange;
-  final ValueChanged<String> onPerfilChange;
+  final VoidCallback onResponderQuestionario;
   final VoidCallback onCadastrar;
 
-  const _EtapaPerfil({
+  const _EtapaConfirmacao({
     super.key,
-    required this.perfilSelecionado,
+    required this.respondeuQuestionario,
     required this.erro,
     required this.carregando,
     required this.termosAceitos,
     required this.onTermosChange,
-    required this.onPerfilChange,
+    required this.onResponderQuestionario,
     required this.onCadastrar,
   });
 
-  static const List<_PerfilOpcao> _perfis = [
-    _PerfilOpcao(
-      valor: 'conservador',
-      label: 'Conservador',
-      descricao: 'Prefere segurança. Foco em renda fixa e liquidez.',
-      icone: Icons.shield_outlined,
-    ),
-    _PerfilOpcao(
-      valor: 'moderado',
-      label: 'Moderado',
-      descricao: 'Equilibrio entre segurança e crescimento.',
-      icone: Icons.balance_outlined,
-    ),
-    _PerfilOpcao(
-      valor: 'arrojado',
-      label: 'Arrojado',
-      descricao: 'Aceita mais risco em busca de maiores retornos.',
-      icone: Icons.rocket_launch_outlined,
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final cor = respondeuQuestionario ? InvestAITheme.verde : InvestAITheme.amarelo;
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Perfil de investidor',
+            'Quase lá',
             style: GoogleFonts.inter(
               fontSize: 28,
               fontWeight: FontWeight.w800,
@@ -861,16 +988,73 @@ class _EtapaPerfil extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Usamos isso para personalizar sua trilha de investimentos.',
+            'Confira e aceite os termos para criar sua conta.',
             style: GoogleFonts.inter(fontSize: 14, color: InvestAITheme.cinza),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
 
-          ..._perfis.map((perfil) => _PerfilCard(
-                perfil: perfil,
-                selecionado: perfilSelecionado == perfil.valor,
-                onTap: () => onPerfilChange(perfil.valor),
-              )),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: cor.withValues(alpha: 0.35)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  respondeuQuestionario
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.info_outline_rounded,
+                  color: cor,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        respondeuQuestionario
+                            ? 'Questionário respondido'
+                            : 'Questionário pendente',
+                        style: GoogleFonts.inter(
+                            fontSize: 14, fontWeight: FontWeight.w700, color: cor),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        respondeuQuestionario
+                            ? 'Seu perfil de investidor será calculado ao '
+                                'criar a conta.'
+                            : 'Até você responder, consideramos o perfil '
+                                'conservador. Dá para responder depois, na '
+                                'aba Perfil.',
+                        style: GoogleFonts.inter(
+                            fontSize: 12.5, color: InvestAITheme.cinza, height: 1.4),
+                      ),
+                      if (!respondeuQuestionario)
+                        TextButton(
+                          onPressed: onResponderQuestionario,
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            'Responder agora',
+                            style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: InvestAITheme.verde),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
 
           const SizedBox(height: 20),
 
@@ -955,7 +1139,7 @@ class _EtapaPerfil extends StatelessWidget {
   }
 }
 
-// ── Card de perfil de risco ──────────────────────────────────────────────────
+// ── Termos de uso ────────────────────────────────────────────────────────────
 
 /// Mostra os termos vindos do backend. Buscar do servidor (e não embutir
 /// o texto no app) é o que permite saber qual versão cada pessoa aceitou.
@@ -1082,100 +1266,6 @@ class _FolhaTermos extends StatelessWidget {
       ),
     );
   }
-}
-
-class _PerfilCard extends StatelessWidget {
-  final _PerfilOpcao perfil;
-  final bool selecionado;
-  final VoidCallback onTap;
-
-  const _PerfilCard({
-    required this.perfil,
-    required this.selecionado,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: selecionado
-              ? InvestAITheme.verde.withValues(alpha: 0.1)
-              : InvestAITheme.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selecionado ? InvestAITheme.verde : InvestAITheme.borda,
-            width: selecionado ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: selecionado
-                    ? InvestAITheme.verde.withValues(alpha: 0.2)
-                    : InvestAITheme.borda,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                perfil.icone,
-                color: selecionado ? InvestAITheme.verde : InvestAITheme.cinza,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    perfil.label,
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: selecionado
-                          ? InvestAITheme.verde
-                          : InvestAITheme.texto,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    perfil.descricao,
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: InvestAITheme.cinza),
-                  ),
-                ],
-              ),
-            ),
-            if (selecionado)
-              const Icon(Icons.check_circle_rounded,
-                  color: InvestAITheme.verde, size: 20),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PerfilOpcao {
-  final String valor;
-  final String label;
-  final String descricao;
-  final IconData icone;
-  const _PerfilOpcao({
-    required this.valor,
-    required this.label,
-    required this.descricao,
-    required this.icone,
-  });
 }
 
 // ── Componente de erro ───────────────────────────────────────────────────────

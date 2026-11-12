@@ -1160,32 +1160,51 @@ class _SecaoSugestoes extends StatelessWidget {
           )
         else
           _SugestoesPerfil(
-              sugestoes: sugestoes.cast<Map<String, dynamic>>()),
+            sugestoes: sugestoes.cast<Map<String, dynamic>>(),
+            carteira: ((guia?['carteira_sugerida'] as List?) ?? [])
+                .cast<Map<String, dynamic>>(),
+            perfil: guia?['perfil_risco'] as String?,
+          ),
       ],
     );
   }
 }
 
-/// Mostra uma sugestão em destaque com o motivo em linguagem comum, e
-/// guarda as demais atrás de um link. Uma lista com três produtos de renda
-/// fixa não ajuda quem nunca investiu a decidir - só informa.
-class _SugestoesPerfil extends StatefulWidget {
+/// Recomendações para o perfil (RF16/RF18): a de entrada em destaque, a
+/// carteira de referência (como dividir o dinheiro entre as classes) e as
+/// demais opções, cada uma com risco, prazo e o motivo em linguagem comum.
+class _SugestoesPerfil extends StatelessWidget {
   final List<Map<String, dynamic>> sugestoes;
-  const _SugestoesPerfil({required this.sugestoes});
+  final List<Map<String, dynamic>> carteira;
+  final String? perfil;
+  const _SugestoesPerfil({
+    required this.sugestoes,
+    required this.carteira,
+    required this.perfil,
+  });
 
-  @override
-  State<_SugestoesPerfil> createState() => _SugestoesPerfilState();
-}
+  static const _rotulosPerfil = {
+    'conservador': 'conservador',
+    'moderado': 'moderado',
+    'arrojado': 'arrojado',
+  };
 
-class _SugestoesPerfilState extends State<_SugestoesPerfil> {
-  bool _mostrarOutras = false;
+  void _explicar(BuildContext context, String nome) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ChatIaScreen(
+        perguntaInicial: 'Me explica o que é $nome como se eu nunca tivesse '
+            'investido, e por que isso faz sentido pra minha situação.',
+      ),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.sugestoes.isEmpty) return const SizedBox.shrink();
+    if (sugestoes.isEmpty) return const SizedBox.shrink();
 
-    final principal = widget.sugestoes.first;
-    final outras = widget.sugestoes.skip(1).toList();
+    final principal = sugestoes.first;
+    final outras = sugestoes.skip(1).toList();
+    final rotuloPerfil = _rotulosPerfil[perfil];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1214,6 +1233,8 @@ class _SugestoesPerfilState extends State<_SugestoesPerfil> {
                       fontWeight: FontWeight.w800,
                       color: InvestAITheme.texto)),
               const SizedBox(height: 8),
+              _EtiquetasSugestao(sugestao: principal),
+              const SizedBox(height: 10),
               TextoComGlossario(
                   principal['motivo'] ?? principal['descricao'] ?? '',
                   estilo: GoogleFonts.inter(
@@ -1233,14 +1254,7 @@ class _SugestoesPerfilState extends State<_SugestoesPerfil> {
               // Atalho para a IA, que já conhece a situação financeira da
               // pessoa e pode explicar com os números dela.
               OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => ChatIaScreen(
-                    perguntaInicial:
-                        'Me explica o que é ${principal['nome']} como se eu '
-                        'nunca tivesse investido, e por que isso faz sentido '
-                        'pra minha situação.',
-                  ),
-                )),
+                onPressed: () => _explicar(context, '${principal['nome']}'),
                 icon: const RoboAssistente(tamanho: 18),
                 label: const Text('Me explica isso'),
                 style: OutlinedButton.styleFrom(
@@ -1259,73 +1273,240 @@ class _SugestoesPerfilState extends State<_SugestoesPerfil> {
           ),
         ),
 
+        if (carteira.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _CarteiraSugerida(carteira: carteira, rotuloPerfil: rotuloPerfil),
+        ],
+
         if (outras.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          TextButton(
-            onPressed: () => setState(() => _mostrarOutras = !_mostrarOutras),
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              _mostrarOutras
-                  ? 'Esconder outras opções'
-                  : 'Ver outras ${outras.length} opções do seu perfil',
-              style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: InvestAITheme.verde),
-            ),
+          const SizedBox(height: 20),
+          Text(
+            rotuloPerfil == null
+                ? 'Mais opções para você'
+                : 'Mais opções para o perfil $rotuloPerfil',
+            style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: InvestAITheme.texto),
           ),
-          if (_mostrarOutras)
-            for (final s in outras)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: InvestAITheme.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: InvestAITheme.borda),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(s['nome'] ?? '',
-                              style: GoogleFonts.inter(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: InvestAITheme.texto)),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: InvestAITheme.verde.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(s['tipo'] ?? '',
-                              style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  color: InvestAITheme.verde,
-                                  fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                    ),
+          const SizedBox(height: 4),
+          Text('Toque em "Me explica" para a IA falar sobre qualquer uma.',
+              style:
+                  GoogleFonts.inter(fontSize: 11.5, color: InvestAITheme.cinza)),
+          for (final s in outras)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: InvestAITheme.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: InvestAITheme.borda),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(s['nome'] ?? '',
+                      style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: InvestAITheme.texto)),
+                  const SizedBox(height: 8),
+                  _EtiquetasSugestao(sugestao: s),
+                  const SizedBox(height: 8),
+                  TextoComGlossario(s['motivo'] ?? s['descricao'] ?? '',
+                      estilo: GoogleFonts.inter(
+                          fontSize: 12.5,
+                          color: InvestAITheme.texto,
+                          height: 1.45)),
+                  if (s['motivo'] != null &&
+                      (s['descricao'] ?? '').toString().isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    Text(s['descricao'] ?? '',
-                        style: GoogleFonts.inter(
-                            fontSize: 12,
+                    TextoComGlossario(s['descricao'],
+                        estilo: GoogleFonts.inter(
+                            fontSize: 11.5,
                             color: InvestAITheme.cinza,
                             height: 1.4)),
                   ],
-                ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _explicar(context, '${s['nome']}'),
+                      icon: const RoboAssistente(tamanho: 16),
+                      label: const Text('Me explica'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: InvestAITheme.verde,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: GoogleFonts.inter(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
         ],
       ],
+    );
+  }
+}
+
+/// Tipo, risco, prazo e liquidez de uma sugestão, em etiquetas curtas.
+class _EtiquetasSugestao extends StatelessWidget {
+  final Map<String, dynamic> sugestao;
+  const _EtiquetasSugestao({required this.sugestao});
+
+  static const _risco = {
+    'baixo': ('Risco baixo', InvestAITheme.verde),
+    'medio': ('Risco médio', InvestAITheme.amarelo),
+    'alto': ('Risco alto', InvestAITheme.vermelho),
+  };
+
+  static const _prazo = {
+    'curto': 'Curto prazo',
+    'medio': 'Médio prazo',
+    'longo': 'Longo prazo',
+  };
+
+  static const _liquidez = {
+    'diaria': 'Saque diário',
+    'carencia': 'Tem carência',
+    'no vencimento': 'Saque no vencimento',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final risco = _risco[sugestao['risco']];
+    final prazo = _prazo[sugestao['prazo']];
+    final liquidez = _liquidez[sugestao['liquidez']];
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        if ((sugestao['tipo'] ?? '').toString().isNotEmpty)
+          _Etiqueta(texto: sugestao['tipo'], cor: InvestAITheme.verde),
+        if (risco != null) _Etiqueta(texto: risco.$1, cor: risco.$2),
+        if (prazo != null) _Etiqueta(texto: prazo, cor: InvestAITheme.cinza),
+        if (liquidez != null) _Etiqueta(texto: liquidez, cor: InvestAITheme.cinza),
+      ],
+    );
+  }
+}
+
+class _Etiqueta extends StatelessWidget {
+  final String texto;
+  final Color cor;
+  const _Etiqueta({required this.texto, required this.cor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(texto,
+          style: GoogleFonts.inter(
+              fontSize: 10.5, color: cor, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+/// Carteira de referência do perfil: uma barra dividida por classe de
+/// investimento, com a legenda e o percentual de cada uma.
+class _CarteiraSugerida extends StatelessWidget {
+  final List<Map<String, dynamic>> carteira;
+  final String? rotuloPerfil;
+  const _CarteiraSugerida({required this.carteira, required this.rotuloPerfil});
+
+  static const _cores = [
+    InvestAITheme.verde,
+    Color(0xFF4C9EFF),
+    InvestAITheme.amarelo,
+    Color(0xFFB57BFF),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: InvestAITheme.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: InvestAITheme.borda),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            rotuloPerfil == null
+                ? 'Carteira sugerida'
+                : 'Carteira sugerida para o perfil $rotuloPerfil',
+            style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: InvestAITheme.texto),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Como dividir o que você investir, fora a reserva de emergência. '
+            'É uma referência, não uma regra.',
+            style: GoogleFonts.inter(
+                fontSize: 11.5, color: InvestAITheme.cinza, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              height: 12,
+              child: Row(
+                children: [
+                  for (var i = 0; i < carteira.length; i++)
+                    Expanded(
+                      flex: (carteira[i]['percentual'] as num).round(),
+                      child: Container(color: _cores[i % _cores.length]),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < carteira.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: _cores[i % _cores.length],
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('${carteira[i]['classe']}',
+                        style: GoogleFonts.inter(
+                            fontSize: 12.5, color: InvestAITheme.texto)),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('${carteira[i]['percentual']}%',
+                      style: GoogleFonts.inter(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: InvestAITheme.texto)),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
