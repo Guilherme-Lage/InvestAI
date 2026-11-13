@@ -10,9 +10,6 @@ from services.importacao.sugerir_categoria import (
     sugerir_categoria,
 )
 
-# Uma compra no cartão pode aparecer no extrato um ou dois dias depois de
-# o usuário tê-la registrado à mão; a recorrência é lançada no dia marcado
-# e o débito real pode cair no dia útil seguinte.
 DIAS_DE_TOLERANCIA = 3
 
 

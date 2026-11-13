@@ -4,7 +4,7 @@ from datetime import date
 
 from services.importacao.limpar_descricao import limpar_descricao
 
-TAMANHO_MAXIMO_DESCRICAO = 120  # limite da coluna movimentacao.descricao
+TAMANHO_MAXIMO_DESCRICAO = 120  
 
 
 class LerExtratoOfxService:
