@@ -316,6 +316,54 @@ void main() {
       expect(find.textContaining('Continue guardando'), findsNothing);
     });
 
+    testeDeTela('liberado, mostra todas as sugestões do perfil e a carteira',
+        (tester, api) async {
+      final guia = Map<String, dynamic>.from(api.resposta('/api/orientacao/guia'));
+      Map<String, dynamic> sugestao(String nome, String tipo, String risco,
+              String prazo, String liquidez) =>
+          {
+            'nome': nome,
+            'tipo': tipo,
+            'risco': risco,
+            'prazo': prazo,
+            'liquidez': liquidez,
+            'motivo': 'Motivo de $nome.',
+            'descricao': 'Descrição de $nome.',
+          };
+      api.responder('/api/orientacao/guia', {
+        ...guia,
+        'passo': 'pronto_para_investir',
+        'perfil_risco': 'arrojado',
+        'reserva': {
+          ...(guia['reserva'] as Map<String, dynamic>),
+          'sugestoes_investimento_liberadas': true,
+        },
+        'sugestoes_investimento': [
+          sugestao('ETF de índice (ex.: Ibovespa)', 'Renda variável', 'alto', 'longo', 'diaria'),
+          sugestao('ETF internacional (ex.: S&P 500)', 'Renda variável', 'alto', 'longo', 'diaria'),
+          sugestao('Fundos imobiliários (FIIs)', 'Renda variável', 'medio', 'longo', 'diaria'),
+          sugestao('Tesouro IPCA+ (longo)', 'Renda fixa', 'medio', 'longo', 'no vencimento'),
+        ],
+        'carteira_sugerida': [
+          {'classe': 'Renda fixa', 'percentual': 30},
+          {'classe': 'Fundos imobiliários e multimercado', 'percentual': 20},
+          {'classe': 'Ações e ETFs no Brasil', 'percentual': 35},
+          {'classe': 'Investimentos no exterior', 'percentual': 15},
+        ],
+      });
+      await montarTela(tester, api, const InvestimentosTab(), tamanho: telaPequena);
+
+      await rolarAte(tester, find.text('Para começar, considere'));
+      expect(find.text('ETF de índice (ex.: Ibovespa)'), findsOneWidget);
+      await rolarAte(tester, find.text('Carteira sugerida para o perfil arrojado'));
+      expect(find.text('35%'), findsOneWidget);
+      // As outras opções aparecem sem precisar tocar em nada.
+      await rolarAte(tester, find.text('Mais opções para o perfil arrojado'));
+      await rolarAte(tester, find.text('Tesouro IPCA+ (longo)'));
+      expect(find.text('Risco alto'), findsWidgets);
+      expect(find.text('Saque no vencimento'), findsOneWidget);
+    });
+
     testeDeTela('o score mostra a evolução quando há histórico', (tester, api) async {
       await montarTela(tester, api, const InvestimentosTab());
 

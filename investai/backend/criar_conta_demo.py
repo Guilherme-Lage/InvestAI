@@ -20,11 +20,9 @@ from services.limite_categoria.definir_limite_categoria_service import (
 )
 from services.recorrencia.criar_recorrencia_service import CriarRecorrenciaService
 from services.usuario.calcular_score_financeiro_service import CalcularScoreFinanceiroService
+from services.usuario.conta_demo import EMAIL_DEMO, SENHA_DEMO, restaurar_reserva_demo
 from services.usuario.criar_usuario_service import CriarUsuarioService
 from services.usuario.deletar_usuario_service import DeletarUsuarioService
-
-EMAIL_DEMO = "demo@investai.com"
-SENHA_DEMO = "Demo@1234"
 
 # Contas que se repetem: (descrição, tipo, valor, categoria, dia do mês).
 # São cadastradas como recorrências, então os lançamentos dos meses
@@ -69,7 +67,9 @@ def criar_conta_demo():
         "nome": "Guilherme",
         "email": EMAIL_DEMO,
         "senha": SENHA_DEMO,
-        "perfil_risco": "moderado",
+        # Sem respostas do questionário de suitability de propósito: a
+        # apresentação mostra o aviso e o questionário sendo respondido.
+        # Ele volta a ficar pendente a cada sessão (services/usuario/conta_demo.py).
         "renda_mensal": 5200.00,
         "despesa_mensal_estimada": 3500.00,
         "despesa_fixa_estimada": 1660.00,
@@ -103,10 +103,9 @@ def criar_conta_demo():
             usuario_id, {"categoria": categoria, "valor_limite": valor_limite}
         )
 
-    # Reserva pela metade do caminho: mantém as sugestões de investimento
-    # bloqueadas, que é a regra central do app (RF14/RF15).
-    _meta(usuario_id, "Reserva de emergência", 10500.00, 6800.00,
-          hoje + timedelta(days=240), tipo="reserva_emergencia")
+    # Reserva pela metade do caminho (valores em services/usuario/conta_demo.py,
+    # que a restaura a cada nova sessão da demo).
+    restaurar_reserva_demo(usuario_id)
     _meta(usuario_id, "Viagem para o Nordeste", 4000.00, 1400.00, hoje + timedelta(days=300))
     _meta(usuario_id, "Notebook novo", 3500.00, 3500.00, hoje + timedelta(days=30))
 

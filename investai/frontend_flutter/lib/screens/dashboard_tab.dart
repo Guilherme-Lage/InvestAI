@@ -5,6 +5,8 @@ import '../models/usuario.dart';
 import '../models/meta.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../widgets/aviso_questionario_pendente.dart';
+import 'questionario_suitability_screen.dart';
 
 /// Início: RF05 (saldo em tempo real), RF08 (capacidade de economia),
 /// RF09 (tempo de sobrevivência), prévia das metas (RF06/RF07) e o guia
@@ -13,7 +15,16 @@ class DashboardTab extends StatefulWidget {
   final Usuario usuario;
   final VoidCallback onVerTodasMetas;
 
-  const DashboardTab({super.key, required this.usuario, required this.onVerTodasMetas});
+  /// Chamado quando a pessoa responde o questionário de suitability a
+  /// partir do aviso desta tela.
+  final ValueChanged<Usuario>? aoAtualizarUsuario;
+
+  const DashboardTab({
+    super.key,
+    required this.usuario,
+    required this.onVerTodasMetas,
+    this.aoAtualizarUsuario,
+  });
 
   @override
   State<DashboardTab> createState() => _DashboardTabState();
@@ -79,7 +90,19 @@ class _DashboardTabState extends State<DashboardTab> {
     }
   }
 
-  String _reais(num valor) => 'R\$ ${valor.toStringAsFixed(2).replaceAll('.', ',')}';
+  Future<void> _abrirQuestionario() async {
+    final atualizado = await Navigator.of(context).push<Usuario>(
+      MaterialPageRoute(
+        builder: (_) => QuestionarioSuitabilityScreen(usuario: widget.usuario),
+      ),
+    );
+    if (atualizado == null) return;
+    widget.aoAtualizarUsuario?.call(atualizado);
+    // As sugestões do guia dependem do perfil: recarrega com o novo.
+    _carregar();
+  }
+
+  String _reais(num valor) =>'R\$ ${valor.toStringAsFixed(2).replaceAll('.', ',')}';
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +143,12 @@ class _DashboardTabState extends State<DashboardTab> {
           Text('Aqui está o seu raio-x financeiro.',
               style: GoogleFonts.inter(fontSize: 13, color: InvestAITheme.cinza)),
           const SizedBox(height: 20),
+
+          // RF18 - quem pulou o questionário no cadastro é lembrado aqui.
+          if (!widget.usuario.suitabilityRespondido) ...[
+            AvisoQuestionarioPendente(onResponder: _abrirQuestionario),
+            const SizedBox(height: 12),
+          ],
 
           // RF05 - saldo disponível
           _SaldoCard(saldo: _saldo, reais: _reais),

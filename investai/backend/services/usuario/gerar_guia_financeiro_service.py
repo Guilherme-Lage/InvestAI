@@ -20,41 +20,141 @@ ROTULOS_CATEGORIA = {
 }
 
 # RF16 - sugestões de investimento adaptadas ao perfil de investidor do
-# usuário (RF18). A trilha em si é educativa e fixa (sem recomendar um
-# banco/corretora específico), mas o rendimento de cada uma é enriquecido
+# usuário (RF18). São educativas e fixas (sem recomendar um banco ou
+# corretora específica), mas o rendimento das de renda fixa é enriquecido
 # com a taxa oficial (Selic/CDI/IPCA) do Banco Central quando disponível
 # (ver "indexador" e BuscarTaxasMercadoService).
+#
+# A primeira de cada perfil é a de entrada, mostrada em destaque. Cada uma
+# traz o motivo em linguagem comum, o nível de risco e o prazo para o qual
+# faz sentido: o mesmo produto pode ser ótimo para 5 anos e ruim para 6 meses.
 SUGESTOES_POR_PERFIL = {
     "conservador": [
-        {"nome": "Tesouro Selic", "tipo": "Renda fixa", "liquidez": "diaria", "indexador": "selic",
-         "motivo": "Você escolheu o perfil conservador, e este é o investimento "
-                   "mais previsível que existe no país: o valor não cai, e você "
-                   "pode sacar em qualquer dia útil sem susto.",
-         "descricao_base": "Baixo risco, ótima liquidez. Bom para reserva e objetivos de curto prazo."},
-        {"nome": "CDB 100% do CDI", "tipo": "Renda fixa", "liquidez": "diaria", "indexador": "cdi",
-         "descricao_base": "Segurança do FGC, rendimento previsível."},
+        {"nome": "Tesouro Selic", "tipo": "Renda fixa", "risco": "baixo", "prazo": "curto",
+         "liquidez": "diaria", "indexador": "selic",
+         "motivo": "Seu perfil é conservador, e este é o investimento mais "
+                   "previsível do país: o valor não cai, e você pode sacar em "
+                   "qualquer dia útil sem susto.",
+         "descricao_base": "Título do governo que acompanha a Selic. Bom para objetivos de curto prazo."},
+        {"nome": "CDB com liquidez diária (100% do CDI)", "tipo": "Renda fixa", "risco": "baixo",
+         "prazo": "curto", "liquidez": "diaria", "indexador": "cdi",
+         "motivo": "Rende parecido com o Tesouro Selic e tem a proteção do FGC "
+                   "até R$ 250 mil por banco. Muitos bancos digitais oferecem.",
+         "descricao_base": "Empréstimo ao banco com resgate a qualquer momento."},
+        {"nome": "LCI e LCA", "tipo": "Renda fixa", "risco": "baixo", "prazo": "medio",
+         "liquidez": "carencia", "indexador": "cdi",
+         "motivo": "São isentas de Imposto de Renda, então mesmo pagando um "
+                   "pouco menos que um CDB podem render mais no fim. Também têm FGC.",
+         "descricao_base": "Letras de crédito imobiliário e do agronegócio. Costumam ter carência."},
+        {"nome": "Tesouro Prefixado (curto)", "tipo": "Renda fixa", "risco": "baixo", "prazo": "medio",
+         "liquidez": "no vencimento", "indexador": None,
+         "motivo": "Você sabe hoje exatamente quanto vai receber no vencimento. "
+                   "Bom para um objetivo com data marcada, como uma viagem.",
+         "descricao_base": "Taxa fixa combinada na compra. Leve até o vencimento para garantir a taxa."},
+        {"nome": "Tesouro IPCA+ (curto)", "tipo": "Renda fixa", "risco": "baixo", "prazo": "medio",
+         "liquidez": "no vencimento", "indexador": "ipca",
+         "motivo": "Protege seu dinheiro da inflação. Escolhendo um vencimento "
+                   "de poucos anos, as oscilações no caminho são pequenas.",
+         "descricao_base": "Paga a inflação mais um juro fixo."},
+        {"nome": "Fundo de renda fixa simples (DI)", "tipo": "Fundo", "risco": "baixo", "prazo": "curto",
+         "liquidez": "diaria", "indexador": "cdi",
+         "motivo": "Um gestor cuida da aplicação por você. Prefira os de taxa de "
+                   "administração baixa (até 0,5% ao ano), senão ela come o rendimento.",
+         "descricao_base": "Fundo que investe em títulos atrelados ao CDI."},
     ],
     "moderado": [
-        {"nome": "Tesouro IPCA+", "tipo": "Renda fixa", "liquidez": "no vencimento", "indexador": "ipca",
-         "motivo": "Ele garante que seu dinheiro cresça acima da inflação: daqui "
-                   "a alguns anos ele ainda vai comprar mais do que compra hoje. "
-                   "Em troca, o ideal é deixar até a data de vencimento.",
-         "descricao_base": "Protege da inflação, bom para metas de médio/longo prazo."},
-        {"nome": "CDB/LCI de banco médio", "tipo": "Renda fixa", "liquidez": "carencia", "indexador": "cdi",
+        {"nome": "Tesouro IPCA+", "tipo": "Renda fixa", "risco": "baixo", "prazo": "longo",
+         "liquidez": "no vencimento", "indexador": "ipca",
+         "motivo": "Garante que seu dinheiro cresça acima da inflação: daqui a "
+                   "alguns anos ele ainda vai comprar mais do que compra hoje. "
+                   "Em troca, o ideal é deixar até o vencimento.",
+         "descricao_base": "Protege da inflação. Bom para metas de médio e longo prazo."},
+        {"nome": "CDB, LCI e LCA de bancos médios", "tipo": "Renda fixa", "risco": "baixo",
+         "prazo": "medio", "liquidez": "carencia", "indexador": "cdi",
+         "motivo": "Pagam mais que os grandes bancos (110% a 120% do CDI) e "
+                   "seguem com a proteção do FGC até R$ 250 mil por banco.",
          "descricao_base": "Rendimento acima da média mantendo baixo risco."},
-        {"nome": "Fundos multimercado", "tipo": "Fundo", "liquidez": "diaria", "indexador": None,
-         "descricao_base": "Diversificação entre renda fixa e variável."},
+        {"nome": "Debêntures incentivadas", "tipo": "Renda fixa", "risco": "medio", "prazo": "longo",
+         "liquidez": "no vencimento", "indexador": "ipca",
+         "motivo": "Você empresta para empresas de infraestrutura e não paga "
+                   "Imposto de Renda. Rendem mais que títulos do governo, mas "
+                   "não têm FGC: escolha empresas sólidas.",
+         "descricao_base": "Títulos de dívida de empresas, geralmente atrelados à inflação."},
+        {"nome": "Fundos multimercado", "tipo": "Fundo", "risco": "medio", "prazo": "medio",
+         "liquidez": "carencia", "indexador": None,
+         "motivo": "O gestor mistura renda fixa, ações, câmbio e juros. Um "
+                   "jeito de diversificar sem precisar escolher cada ativo.",
+         "descricao_base": "Diversificação entre várias classes. Compare a taxa de administração."},
+        {"nome": "Fundos imobiliários (FIIs)", "tipo": "Renda variável", "risco": "medio",
+         "prazo": "longo", "liquidez": "diaria", "indexador": None,
+         "motivo": "Pagam aluguéis todo mês, isentos de IR para pessoa física. "
+                   "As cotas oscilam na bolsa, então pense em anos, não meses.",
+         "descricao_base": "Cotas de imóveis como shoppings, galpões e escritórios."},
+        {"nome": "ETF de índice (ex.: Ibovespa)", "tipo": "Renda variável", "risco": "alto",
+         "prazo": "longo", "liquidez": "diaria", "indexador": None,
+         "motivo": "Uma parcela pequena em bolsa ajuda o patrimônio a crescer "
+                   "no longo prazo. O ETF compra várias empresas de uma vez.",
+         "descricao_base": "Um único ativo que replica um índice da bolsa."},
     ],
     "arrojado": [
-        {"nome": "Fundos de ações", "tipo": "Renda variável", "liquidez": "diaria", "indexador": None,
-         "motivo": "Você aceita oscilação em troca de retorno maior. Aqui o valor "
-                   "sobe e desce no caminho, por isso faz sentido só para o "
-                   "dinheiro que você não vai precisar tão cedo.",
+        {"nome": "ETF de índice (ex.: Ibovespa)", "tipo": "Renda variável", "risco": "alto",
+         "prazo": "longo", "liquidez": "diaria", "indexador": None,
+         "motivo": "Você aceita oscilação em troca de retorno maior. Com um só "
+                   "ativo você fica dono de um pedaço das maiores empresas do "
+                   "país, sem precisar escolher uma por uma.",
+         "descricao_base": "Diversificação em bolsa com custo baixo."},
+        {"nome": "Ações de empresas sólidas", "tipo": "Renda variável", "risco": "alto",
+         "prazo": "longo", "liquidez": "diaria", "indexador": None,
+         "motivo": "Para quem quer escolher as empresas. Diversifique em setores "
+                   "diferentes e não coloque muito dinheiro em uma só.",
+         "descricao_base": "Participação direta em empresas listadas na bolsa."},
+        {"nome": "ETF internacional (ex.: S&P 500)", "tipo": "Renda variável", "risco": "alto",
+         "prazo": "longo", "liquidez": "diaria", "indexador": None,
+         "motivo": "Coloca parte do seu dinheiro em empresas de fora e em dólar, "
+                   "o que protege se a economia brasileira for mal.",
+         "descricao_base": "Exposição a outros países sem abrir conta no exterior."},
+        {"nome": "Fundos imobiliários (FIIs)", "tipo": "Renda variável", "risco": "medio",
+         "prazo": "longo", "liquidez": "diaria", "indexador": None,
+         "motivo": "Geram renda mensal com aluguéis, isenta de IR, e equilibram "
+                   "uma carteira com muitas ações.",
+         "descricao_base": "Cotas de imóveis negociadas na bolsa."},
+        {"nome": "Fundos de ações", "tipo": "Fundo", "risco": "alto", "prazo": "longo",
+         "liquidez": "carencia", "indexador": None,
+         "motivo": "Um gestor profissional escolhe as ações por você. Confira o "
+                   "histórico de vários anos e a taxa de performance.",
          "descricao_base": "Maior potencial de retorno no longo prazo, com mais volatilidade."},
-        {"nome": "ETFs de índice (ex.: IBOV)", "tipo": "Renda variável", "liquidez": "diaria", "indexador": None,
-         "descricao_base": "Diversificação em bolsa com um único ativo."},
-        {"nome": "Fundos multimercado agressivos", "tipo": "Fundo", "liquidez": "carencia", "indexador": None,
+        {"nome": "Fundos multimercado agressivos", "tipo": "Fundo", "risco": "alto",
+         "prazo": "medio", "liquidez": "carencia", "indexador": None,
+         "motivo": "Apostam em juros, câmbio e bolsa ao mesmo tempo, buscando "
+                   "ganhar em cenários diferentes.",
          "descricao_base": "Maior exposição a risco em busca de retorno superior."},
+        {"nome": "Tesouro IPCA+ (longo)", "tipo": "Renda fixa", "risco": "medio", "prazo": "longo",
+         "liquidez": "no vencimento", "indexador": "ipca",
+         "motivo": "Mesmo arrojado, ter uma base que vence a inflação dá "
+                   "estabilidade. Os vencimentos longos pagam as maiores taxas.",
+         "descricao_base": "Protege da inflação por muitos anos; oscila se vendido antes."},
+    ],
+}
+
+# Como dividir o dinheiro investido (fora a reserva de emergência) entre as
+# classes, por perfil. São referências educativas, não uma regra: o ponto é
+# mostrar que nenhum perfil coloca tudo num lugar só.
+CARTEIRA_POR_PERFIL = {
+    "conservador": [
+        {"classe": "Renda fixa pós-fixada (Selic/CDI)", "percentual": 60},
+        {"classe": "Renda fixa atrelada à inflação", "percentual": 25},
+        {"classe": "Renda fixa prefixada", "percentual": 15},
+    ],
+    "moderado": [
+        {"classe": "Renda fixa", "percentual": 60},
+        {"classe": "Fundos imobiliários e multimercado", "percentual": 25},
+        {"classe": "Ações e ETFs", "percentual": 15},
+    ],
+    "arrojado": [
+        {"classe": "Renda fixa", "percentual": 30},
+        {"classe": "Fundos imobiliários e multimercado", "percentual": 20},
+        {"classe": "Ações e ETFs no Brasil", "percentual": 35},
+        {"classe": "Investimentos no exterior", "percentual": 15},
     ],
 }
 
@@ -115,7 +215,10 @@ class GerarGuiaFinanceiroService:
             resultado["meses_estimados"] = self._meses_para_juntar(faltante, composicao)
 
         if passo == "pronto_para_investir":
-            resultado["sugestoes_investimento"] = self._montar_sugestoes(usuario.perfil_risco)
+            perfil = usuario.perfil_risco if usuario.perfil_risco in SUGESTOES_POR_PERFIL else "conservador"
+            resultado["perfil_risco"] = perfil
+            resultado["sugestoes_investimento"] = self._montar_sugestoes(perfil)
+            resultado["carteira_sugerida"] = self._montar_carteira(perfil)
 
         return resultado
 
@@ -204,10 +307,14 @@ class GerarGuiaFinanceiroService:
             sugestoes.append({
                 "nome": item["nome"],
                 "tipo": item["tipo"],
+                "risco": item["risco"],
+                "prazo": item["prazo"],
                 "liquidez": item["liquidez"],
                 "descricao": descricao,
-                # Só a primeira de cada perfil tem motivo: é a que a tela
-                # destaca. As outras ficam como alternativa, para quem pedir.
-                "motivo": item.get("motivo"),
+                "motivo": item["motivo"],
             })
         return sugestoes
+
+    def _montar_carteira(self, perfil_risco):
+        return [dict(c) for c in CARTEIRA_POR_PERFIL.get(
+            perfil_risco, CARTEIRA_POR_PERFIL["conservador"])]

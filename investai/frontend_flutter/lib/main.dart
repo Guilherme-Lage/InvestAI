@@ -31,6 +31,13 @@ void main() {
 /// Se a janela tem tamanho de computador. A altura mínima deixa de fora o
 /// celular deitado, que é largo mas baixo.
 bool _telaDeComputador() {
+  // No navegador do celular a largura pode chegar errada no início (o
+  // Safari começa achando que a página tem 980 px), então o sistema do
+  // aparelho decide antes do tamanho.
+  if (defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.android) {
+    return false;
+  }
   final telas = WidgetsBinding.instance.platformDispatcher.views;
   if (telas.isEmpty) return false;
   final tela = telas.first;

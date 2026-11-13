@@ -41,7 +41,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final abas = [
-      DashboardTab(usuario: _usuario, onVerTodasMetas: () => _irParaAba(1)),
+      DashboardTab(
+        usuario: _usuario,
+        onVerTodasMetas: () => _irParaAba(1),
+        aoAtualizarUsuario: _atualizarUsuario,
+      ),
       const MetasTab(),
       const ReportTab(),
       const InvestimentosTab(),

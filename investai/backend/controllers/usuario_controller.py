@@ -11,6 +11,9 @@ from services.usuario.excluir_propria_conta_service import ExcluirPropriaContaSe
 from services.usuario.buscar_usuarios_com_estatisticas_service import BuscarUsuariosComEstatisticasService
 from services.usuario.listar_usuarios_por_perfil_service import ListarUsuariosPorPerfilService
 from services.usuario.gerar_relatorio_financeiro_usuario_service import GerarRelatorioFinanceiroUsuarioService
+from services.usuario.conta_demo import iniciar_sessao_demo
+from services.usuario.responder_suitability_service import ResponderSuitabilityService
+from services.usuario.questionario_suitability import questionario_atual
 from services.usuario.termos_consentimento import termos_atuais, termo_completo
 from .auth_decorators import token_obrigatorio
 
@@ -37,6 +40,26 @@ class UsuarioController:
         if texto is None:
             return jsonify({"erro": "Termo completo indisponível."}), 404
         return jsonify({"versao": termos_atuais()["versao"], "texto": texto})
+
+    def questionario_suitability(self):
+        """RF18 - perguntas do questionário de suitability. Sem
+        autenticação: ele aparece no cadastro, antes de a conta existir."""
+        return jsonify(questionario_atual())
+
+    @token_obrigatorio
+    def responder_suitability(self, id):
+        """RF18 - recebe {"respostas": {id_pergunta: indice_opcao}},
+        calcula o perfil de investidor e grava no usuário."""
+        if not _pertence_ao_usuario(id):
+            return jsonify({"erro": "Usuário não encontrado"}), 404
+        dados = request.get_json(silent=True) or {}
+        try:
+            resultado = ResponderSuitabilityService().executar(id, dados.get("respostas"))
+        except ValueError as erro:
+            return jsonify({"erro": str(erro)}), 400
+        if resultado is None:
+            return jsonify({"erro": "Usuário não encontrado"}), 404
+        return jsonify(resultado)
 
     @token_obrigatorio
     def listar(self):
@@ -89,7 +112,12 @@ class UsuarioController:
     @token_obrigatorio
     def eu(self):
         """Retorna os dados do usuário autenticado a partir do token
-        (usado pelo app para validar a sessão salva localmente)."""
+        (usado pelo app para validar a sessão salva localmente).
+
+        Com ?abertura=1 (o app sendo aberto com a sessão salva), conta como
+        início de sessão: na conta demo, questionário e reserva voltam ao início."""
+        if request.args.get("abertura") == "1":
+            iniciar_sessao_demo(g.usuario_id)
         usuario = BuscarUsuarioPorIdService().executar(g.usuario_id)
         if usuario is None:
             return jsonify({"erro": "Usuário não encontrado"}), 404
@@ -153,6 +181,8 @@ controller = UsuarioController()
 
 usuario_bp.add_url_rule("/termos", view_func=controller.termos, methods=["GET"])
 usuario_bp.add_url_rule("/termos/completo", view_func=controller.termo_integral, methods=["GET"])
+usuario_bp.add_url_rule("/suitability", view_func=controller.questionario_suitability, methods=["GET"])
+usuario_bp.add_url_rule("/<int:id>/suitability", view_func=controller.responder_suitability, methods=["POST"])
 usuario_bp.add_url_rule("", view_func=controller.listar, methods=["GET"])
 usuario_bp.add_url_rule("", view_func=controller.criar, methods=["POST"])
 usuario_bp.add_url_rule("/login", view_func=controller.login, methods=["POST"])

@@ -1,8 +1,10 @@
 from werkzeug.security import check_password_hash
 
+from models import Usuario
 from repositories import UsuarioRepository
 from services.auth_service import AuthService
 from services.erros import ErroAutenticacao
+from services.usuario.conta_demo import iniciar_sessao_demo
 
 
 class AutenticarUsuarioService:
@@ -21,5 +23,9 @@ class AutenticarUsuarioService:
             raise ErroAutenticacao("E-mail ou senha incorretos.")
 
         token = AuthService.gerar_token(usuario["id"])
-        usuario_publico = {k: v for k, v in usuario.items() if k != "senha_hash"}
-        return {"usuario": usuario_publico, "token": token}
+        # Conta de demonstração: cada login devolve o questionário (pendente)
+        # e a reserva de emergência ao estado original da apresentação.
+        iniciar_sessao_demo(usuario["id"])
+        # Mesmo formato de /me (to_dict, que nunca expõe o senha_hash), para o
+        # app receber também se o questionário de suitability foi respondido.
+        return {"usuario": Usuario.buscar_por_id(usuario["id"]).to_dict(), "token": token}

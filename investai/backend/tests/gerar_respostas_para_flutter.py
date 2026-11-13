@@ -32,6 +32,7 @@ DESTINO = os.path.join(
 # fora: o app já trata a ausência deles, e é isso que os testes exercitam.
 ROTAS = [
     "/api/usuarios/me",
+    "/api/usuarios/suitability",
     "/api/movimentacoes",
     "/api/movimentacoes/saldo",
     "/api/movimentacoes/capacidade-economia",

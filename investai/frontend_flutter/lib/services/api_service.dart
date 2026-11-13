@@ -11,6 +11,7 @@ import '../models/meta.dart';
 import '../models/investimento.dart';
 import '../models/limite_categoria.dart';
 import '../models/recorrencia.dart';
+import '../models/suitability.dart';
 import '../models/transacao_extrato.dart';
 import '../screens/chat_ia_screen.dart' show limparConversaIa;
 import '../screens/login_screen.dart';
@@ -51,6 +52,7 @@ class ApiService {
   static const String _userPerfilKey = 'usuario_perfil_risco';
   static const String _userRendaKey = 'usuario_renda_mensal';
   static const String _userDespesaKey = 'usuario_despesa_mensal_estimada';
+  static const String _userSuitabilityKey = 'usuario_suitability_respondido';
   static const String _tokenKey = 'auth_token';
 
   // ─── Persistência local da sessão ───────────────────────────────────────────
@@ -75,6 +77,7 @@ class ApiService {
     await prefs.setString(_userPerfilKey, usuario.perfilRisco);
     await prefs.setDouble(_userRendaKey, usuario.rendaMensal);
     await prefs.setDouble(_userDespesaKey, usuario.despesaMensalEstimada);
+    await prefs.setBool(_userSuitabilityKey, usuario.suitabilityRespondido);
   }
 
   static Future<Map<String, dynamic>?> carregarSessao() async {
@@ -92,6 +95,9 @@ class ApiService {
       'perfil_risco': prefs.getString(_userPerfilKey) ?? 'conservador',
       'renda_mensal': prefs.getDouble(_userRendaKey) ?? 0.0,
       'despesa_mensal_estimada': prefs.getDouble(_userDespesaKey) ?? 0.0,
+      // Sessão antiga, sem o campo: trata como pendente, para o app
+      // oferecer o questionário em vez de assumir que já foi respondido.
+      'suitability_respondido': prefs.getBool(_userSuitabilityKey) ?? false,
       'token': token,
     };
   }
@@ -104,6 +110,7 @@ class ApiService {
     await prefs.remove(_userPerfilKey);
     await prefs.remove(_userRendaKey);
     await prefs.remove(_userDespesaKey);
+    await prefs.remove(_userSuitabilityKey);
     await prefs.remove(_tokenKey);
     // A conversa com a IA fala de dinheiro: não pode sobrar para quem
     // entrar depois no mesmo aparelho.
@@ -123,8 +130,10 @@ class ApiService {
     if (sessao == null) return null;
 
     try {
+      // abertura=1: o app está sendo aberto. O backend trata isso como
+      // início de sessão (na conta demo, reabre o questionário).
       final response = await http.get(
-        Uri.parse('$baseUrl/api/usuarios/me'),
+        Uri.parse('$baseUrl/api/usuarios/me?abertura=1'),
         headers: {'Authorization': 'Bearer ${sessao['token']}'},
       ).timeout(const Duration(seconds: 10));
 
@@ -194,18 +203,21 @@ class ApiService {
     required String nome,
     required String email,
     required String senha,
-    required String perfilRisco,
     required double rendaMensal,
     required double despesaMensalEstimada,
     required double despesaFixaEstimada,
     required bool consentimentoAceito,
+    /// Respostas do questionário de suitability ({id_pergunta: opção}),
+    /// ou null se a pessoa pulou. O perfil é calculado no backend.
+    Map<String, int>? respostasSuitability,
   }) async {
     try {
       final body = jsonEncode({
         'nome': nome,
         'email': email,
         'senha': senha,
-        'perfil_risco': perfilRisco,
+        if (respostasSuitability != null)
+          'respostas_suitability': respostasSuitability,
         'renda_mensal': rendaMensal,
         'despesa_mensal_estimada': despesaMensalEstimada,
         'despesa_fixa_estimada': despesaFixaEstimada,
@@ -250,6 +262,43 @@ class ApiService {
     final usuario = Usuario.fromJson(corpo);
     await _salvarDadosUsuario(usuario);
     return usuario;
+  }
+
+  // ─── RF18 - questionário de suitability ─────────────────────────────────────
+
+  /// Perguntas do questionário. Rota pública: ele aparece no cadastro,
+  /// antes de existir token.
+  static Future<List<PerguntaSuitability>> questionarioSuitability() async {
+    try {
+      final resposta = await http
+          .get(Uri.parse('$baseUrl/api/usuarios/suitability'))
+          .timeout(const Duration(seconds: 10));
+      if (resposta.statusCode != 200) {
+        throw ApiException('Não consegui carregar o questionário.');
+      }
+      final corpo = jsonDecode(resposta.body) as Map<String, dynamic>;
+      return (corpo['perguntas'] as List)
+          .map((p) => PerguntaSuitability.fromJson(p as Map<String, dynamic>))
+          .toList();
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Não foi possível conectar ao servidor.');
+    }
+  }
+
+  /// Envia as respostas; o backend calcula e grava o perfil.
+  static Future<ResultadoSuitability> responderSuitability(
+      int id, Map<String, int> respostas) async {
+    final corpo = await _post('/api/usuarios/$id/suitability', {'respostas': respostas});
+    final usuario = Usuario.fromJson(corpo['usuario']);
+    await _salvarDadosUsuario(usuario);
+    final resultado = corpo['resultado'] as Map<String, dynamic>;
+    return ResultadoSuitability(
+      usuario: usuario,
+      perfil: resultado['perfil'] as String,
+      descricao: resultado['descricao'] as String? ?? '',
+    );
   }
 
   // ─── Requisição autenticada genérica ────────────────────────────────────────

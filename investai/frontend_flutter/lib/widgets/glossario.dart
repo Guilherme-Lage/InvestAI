@@ -48,6 +48,19 @@ class Glossario {
         'o ideal é deixar até a data de vencimento.',
     'cdb': 'Certificado de Depósito Bancário. Você empresta dinheiro ao banco '
         'e recebe com juros. Tem proteção do FGC até R\$ 250 mil.',
+    'lci': 'Letra de Crédito Imobiliário. Você empresta ao banco para ele '
+        'financiar imóveis. Não paga Imposto de Renda e tem FGC.',
+    'lca': 'Letra de Crédito do Agronegócio. Igual à LCI, mas o dinheiro vai '
+        'para o agronegócio. Também é isenta de Imposto de Renda e tem FGC.',
+    'debêntures': 'São títulos de dívida de empresas: você empresta para a '
+        'empresa e recebe juros. As "incentivadas" financiam infraestrutura '
+        'e não pagam Imposto de Renda. Não têm FGC.',
+    'fundos imobiliários': 'Fundos que compram imóveis (shoppings, galpões, '
+        'escritórios) e repassam os aluguéis aos cotistas, normalmente todo '
+        'mês. As cotas são negociadas na bolsa e o valor oscila.',
+    'etf': 'Um fundo negociado na bolsa que copia um índice, como o Ibovespa. '
+        'Comprando uma cota você fica com um pedacinho de várias empresas de '
+        'uma vez, com custo baixo.',
     'juro real': 'É o quanto o seu dinheiro rende de verdade, já descontando '
         'a inflação. Render 10% com inflação de 4% significa um juro real de '
         'cerca de 6%.',

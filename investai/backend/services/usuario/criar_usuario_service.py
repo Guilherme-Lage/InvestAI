@@ -4,6 +4,8 @@ from datetime import datetime
 from models import Usuario
 from repositories import UsuarioRepository
 from services.auth_service import AuthService
+from services.usuario.questionario_suitability import VERSAO_ATUAL as VERSAO_SUITABILITY
+from services.usuario.questionario_suitability import avaliar_respostas
 from services.usuario.termos_consentimento import VERSAO_ATUAL
 
 REGEX_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -74,6 +76,15 @@ class CriarUsuarioService:
         if perfil_risco not in ("conservador", "moderado", "arrojado"):
             raise ValueError("Perfil de risco inválido.")
 
+        # O questionário de suitability é opcional no cadastro (dá para
+        # pular). Respondido, o perfil sai das respostas; pulado, fica o
+        # conservador até a pessoa responder pela aba Perfil.
+        avaliacao = None
+        respostas = dados.get("respostas_suitability")
+        if respostas is not None:
+            avaliacao = avaliar_respostas(respostas)
+            perfil_risco = avaliacao["perfil"]
+
         # Sem aceite não há conta: o app coleta dados financeiros e envia um
         # resumo deles a um serviço de IA externo, então a pessoa precisa
         # saber disso antes de começar.
@@ -91,6 +102,11 @@ class CriarUsuarioService:
             consentimento_versao=VERSAO_ATUAL,
             consentimento_em=datetime.now(),
         )
+        if avaliacao is not None:
+            usuario.suitability_respondido = True
+            usuario.suitability_pontuacao = avaliacao["pontuacao"]
+            usuario.suitability_versao = VERSAO_SUITABILITY
+            usuario.suitability_em = datetime.now()
         usuario.definir_senha(senha)
         usuario.salvar()
 
