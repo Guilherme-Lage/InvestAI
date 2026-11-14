@@ -86,7 +86,7 @@ void main() {
       expect(find.text('${score['score']}'), findsOneWidget);
       expect(find.text('${score['classificacao']}'), findsOneWidget);
       await rolarAte(tester, find.text('O que compõe sua nota'));
-      expect(find.text('Reserva de emergência'), findsOneWidget);
+      expect(find.text('Reserva'), findsOneWidget);
       // Na conta demo as metas são a parte com mais pontos a ganhar.
       await rolarAte(tester, find.textContaining('Para subir até'));
       expect(find.textContaining('Conclua suas metas'), findsOneWidget);

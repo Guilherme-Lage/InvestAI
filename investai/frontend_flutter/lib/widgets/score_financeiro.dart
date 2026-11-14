@@ -40,7 +40,7 @@ class ScoreFinanceiroCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(semMoldura ? 0 : 18),
+      padding: EdgeInsets.all(semMoldura ? 0 : 16),
       decoration: semMoldura
           ? null
           : BoxDecoration(
@@ -74,14 +74,14 @@ class ScoreFinanceiroCard extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
           ],
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text('$valor',
                   style: GoogleFonts.inter(
-                      fontSize: semMoldura ? 30 : 38, fontWeight: FontWeight.w800, color: cor, height: 1)),
+                      fontSize: semMoldura ? 30 : 32, fontWeight: FontWeight.w800, color: cor, height: 1)),
               Flexible(
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 3, left: 6),
@@ -94,22 +94,22 @@ class ScoreFinanceiroCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: progresso,
-              minHeight: 8,
+              minHeight: 7,
               backgroundColor: InvestAITheme.borda,
               valueColor: AlwaysStoppedAnimation(cor),
             ),
           ),
           if (detalhes != null && detalhes.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _ComposicaoScore(detalhes: detalhes),
           ],
           if (historico != null) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
             _EvolucaoScore(historico: historico!, cor: cor),
           ],
         ],
@@ -131,25 +131,25 @@ class _ComposicaoScore extends StatelessWidget {
   static const _partes = [
     (
       'saldo',
-      'Saldo no positivo',
+      'Saldo positivo',
       'Deixe o saldo positivo: registre todas as receitas e segure os gastos '
           'até as contas fecharem no azul.',
     ),
     (
       'reserva_emergencia',
-      'Reserva de emergência',
+      'Reserva',
       'Faça aportes na sua reserva de emergência, na aba Metas. Cada real '
           'guardado soma pontos.',
     ),
     (
       'cumprimento_metas',
-      'Metas concluídas',
+      'Metas',
       'Conclua suas metas na aba Metas. Se ainda não tem nenhuma, crie uma '
           'pequena e alcançável.',
     ),
     (
       'controle_gastos',
-      'Gastos dentro do limite',
+      'Gastos no limite',
       'Alguma categoria passou do limite que você definiu. Veja qual na aba '
           'Relatório e ajuste os gastos dela.',
     ),
@@ -177,12 +177,25 @@ class _ComposicaoScore extends StatelessWidget {
             style: GoogleFonts.inter(
                 fontSize: 12.5, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
         const SizedBox(height: 8),
-        for (final parte in _partes)
-          _LinhaParte(rotulo: parte.$2, pontos: _pontos(parte.$1), maximo: _pontosPorParte),
-        const SizedBox(height: 6),
+        // Grade 2x2: as quatro partes ocupam metade da altura de uma lista.
+        for (var linha = 0; linha < _partes.length; linha += 2)
+          Row(
+            children: [
+              for (var i = linha; i < linha + 2 && i < _partes.length; i++) ...[
+                if (i > linha) const SizedBox(width: 14),
+                Expanded(
+                  child: _LinhaParte(
+                      rotulo: _partes[i].$2,
+                      pontos: _pontos(_partes[i].$1),
+                      maximo: _pontosPorParte),
+                ),
+              ],
+            ],
+          ),
+        const SizedBox(height: 4),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
           decoration: BoxDecoration(
             color: InvestAITheme.fundo,
             borderRadius: BorderRadius.circular(10),
@@ -194,7 +207,7 @@ class _ComposicaoScore extends StatelessWidget {
               Icon(
                 maisAGanhar == null ? Icons.emoji_events_outlined : Icons.trending_up_rounded,
                 color: InvestAITheme.verde,
-                size: 18,
+                size: 16,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -202,7 +215,7 @@ class _ComposicaoScore extends StatelessWidget {
                   maisAGanhar == null
                       ? 'Nota máxima em todas as partes. Agora é manter o ritmo!'
                       : 'Para subir até ${maiorFalta.round()} pontos: ${maisAGanhar.$3}',
-                  style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.texto, height: 1.4),
+                  style: GoogleFonts.inter(fontSize: 11.5, color: InvestAITheme.texto, height: 1.35),
                 ),
               ),
             ],
@@ -236,11 +249,12 @@ class _LinhaParte extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(rotulo,
-                    style: GoogleFonts.inter(fontSize: 11.5, color: InvestAITheme.cinza)),
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(fontSize: 11, color: InvestAITheme.cinza)),
               ),
-              Text('${pontos.round()} / ${maximo.round()}',
+              Text('${pontos.round()}/${maximo.round()}',
                   style: GoogleFonts.inter(
-                      fontSize: 11.5, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
+                      fontSize: 11, fontWeight: FontWeight.w700, color: InvestAITheme.texto)),
             ],
           ),
           const SizedBox(height: 4),
@@ -328,9 +342,9 @@ class _EvolucaoScore extends StatelessWidget {
                     fontSize: 12, fontWeight: FontWeight.w700, color: corVariacao)),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 80,
+          height: 60,
           child: LineChart(
             LineChartData(
               minY: minimo - folga,
