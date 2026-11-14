@@ -1,7 +1,11 @@
 from models import Usuario
 from repositories import MovimentacaoRepository
+from repositories.movimentacao_repository import CATEGORIA_AJUSTE_SALDO
 from services.movimentacao.calcular_despesa_media_service import (
     CalcularDespesaMediaService,
+)
+from services.movimentacao.calcular_renda_media_service import (
+    CalcularRendaMediaService,
 )
 
 # Categorias que a pessoa não consegue cortar no curto prazo sem uma
@@ -24,8 +28,9 @@ class AnalisarComposicaoGastosService:
     está a alavanca real dele: cortar gasto flexível, aumentar renda, ou
     seguir no ritmo atual.
 
-    Usa os gastos reais por categoria quando existem; enquanto não existem,
-    cai para a estimativa informada no cadastro.
+    Usa a renda e os gastos reais quando existem; enquanto não existem,
+    cai para o que foi informado no cadastro. Todos os valores devolvidos
+    são mensais.
     """
 
     def executar(self, usuario_id):
@@ -36,7 +41,7 @@ class AnalisarComposicaoGastosService:
         despesa_total = CalcularDespesaMediaService().executar(usuario_id)
         obrigatoria, flexivel, maior_flexivel = self._compor(usuario_id, usuario, despesa_total)
 
-        renda = usuario.renda_mensal or 0.0
+        renda = CalcularRendaMediaService().executar(usuario_id)
         capacidade = renda - despesa_total
         percentual = (capacidade / renda * 100) if renda > 0 else 0.0
 
@@ -54,7 +59,12 @@ class AnalisarComposicaoGastosService:
     def _compor(self, usuario_id, usuario, despesa_total):
         """Divide a despesa entre obrigatória e flexível, e aponta a maior
         categoria flexível (a que faz diferença se for ajustada)."""
-        por_categoria = MovimentacaoRepository.gastos_por_categoria(usuario_id)
+        # O ajuste de saldo da importação não é um gasto de verdade: sem
+        # este filtro ele podia virar o "maior gasto ajustável" do guia.
+        por_categoria = [
+            item for item in MovimentacaoRepository.gastos_por_categoria(usuario_id)
+            if item["categoria"] != CATEGORIA_AJUSTE_SALDO
+        ]
 
         if por_categoria:
             obrigatoria = sum(
@@ -71,11 +81,16 @@ class AnalisarComposicaoGastosService:
             # despesa usada nos cálculos é mensal - normaliza a proporção
             # para os dois falarem da mesma escala.
             soma = obrigatoria + flexivel
-            if soma > 0:
-                obrigatoria = despesa_total * (obrigatoria / soma)
-                flexivel = despesa_total * (flexivel / soma)
+            fator = despesa_total / soma if soma > 0 else 0.0
+            obrigatoria *= fator
+            flexivel *= fator
 
+            # A maior categoria também vai na escala mensal: o guia mostra
+            # esse valor como "seu maior gasto", e o total do histórico
+            # inteiro parecia um gasto de um mês só.
             maior = max(flexiveis, key=lambda i: i["total"], default=None)
+            if maior:
+                maior = {"categoria": maior["categoria"], "total": round(maior["total"] * fator, 2)}
             return obrigatoria, flexivel, maior
 
         # Sem histórico: usa o que foi informado no cadastro.

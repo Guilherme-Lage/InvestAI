@@ -2,7 +2,7 @@
  "/api/investimentos": [
   {
    "calculado_automaticamente": true,
-   "data_aplicacao": "2026-04-21",
+   "data_aplicacao": "2026-04-28",
    "dias_aplicados": 200,
    "id": 1,
    "indexador": "poupanca",
@@ -52,7 +52,7 @@
    "aporte_sugerido": 0.0,
    "id": 3,
    "meses_restantes": 1,
-   "prazo": "2026-12-07",
+   "prazo": "2026-12-14",
    "progresso": 100.0,
    "tipo": "geral",
    "titulo": "Notebook novo",
@@ -64,7 +64,7 @@
    "aporte_sugerido": 462.5,
    "id": 1,
    "meses_restantes": 8,
-   "prazo": "2027-07-05",
+   "prazo": "2027-07-12",
    "progresso": 64.8,
    "tipo": "reserva_emergencia",
    "titulo": "Reserva de emergência",
@@ -76,7 +76,7 @@
    "aporte_sugerido": 260.0,
    "id": 2,
    "meses_restantes": 10,
-   "prazo": "2027-09-03",
+   "prazo": "2027-09-10",
    "progresso": 35.0,
    "tipo": "geral",
    "titulo": "Viagem para o Nordeste",
@@ -86,7 +86,7 @@
   }
  ],
  "/api/metas/reserva-emergencia": {
-  "despesa_media_mensal": 2681.6,
+  "despesa_media_mensal": 3391.6,
   "onde_guardar": {
    "atualizado_em": "01/01/2026",
    "ipca": 5.0,
@@ -124,7 +124,7 @@
   "possui_reserva": true,
   "reserva": {
    "id": 1,
-   "prazo": "2027-07-05",
+   "prazo": "2027-07-12",
    "progresso": 64.8,
    "tipo": "reserva_emergencia",
    "titulo": "Reserva de emergência",
@@ -134,32 +134,68 @@
   },
   "sugestoes_investimento_liberadas": false,
   "valor_guardado": 6800.0,
-  "valor_ideal_reserva": 8044.8
+  "valor_ideal_reserva": 10174.8
  },
  "/api/movimentacoes": [
   {
-   "categoria": "lazer",
-   "data": "2026-11-07",
-   "descricao": "Cinema e lanche",
-   "id": 30,
+   "categoria": "educacao",
+   "data": "2026-11-14",
+   "descricao": "Curso online",
+   "id": 34,
    "tipo": "gasto",
    "usuario_id": 1,
-   "valor": 120.0
+   "valor": 200.0
   },
   {
    "categoria": "lazer",
-   "data": "2026-11-07",
+   "data": "2026-11-14",
    "descricao": "Ingresso de show",
-   "id": 32,
+   "id": 36,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 480.0
   },
   {
+   "categoria": "alimentacao",
+   "data": "2026-11-12",
+   "descricao": "Feira e padaria",
+   "id": 33,
+   "tipo": "gasto",
+   "usuario_id": 1,
+   "valor": 290.0
+  },
+  {
+   "categoria": "contas_fixas",
+   "data": "2026-11-10",
+   "descricao": "Aluguel",
+   "id": 6,
+   "tipo": "gasto",
+   "usuario_id": 1,
+   "valor": 1500.0
+  },
+  {
+   "categoria": "saude",
+   "data": "2026-11-08",
+   "descricao": "Farmácia",
+   "id": 32,
+   "tipo": "gasto",
+   "usuario_id": 1,
+   "valor": 140.0
+  },
+  {
+   "categoria": "lazer",
+   "data": "2026-11-07",
+   "descricao": "Cinema e lanche",
+   "id": 31,
+   "tipo": "gasto",
+   "usuario_id": 1,
+   "valor": 120.0
+  },
+  {
    "categoria": "transporte",
    "data": "2026-11-06",
    "descricao": "Combustível",
-   "id": 29,
+   "id": 30,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 95.0
@@ -177,7 +213,7 @@
    "categoria": "alimentacao",
    "data": "2026-11-03",
    "descricao": "Supermercado",
-   "id": 28,
+   "id": 29,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 380.0
@@ -186,7 +222,7 @@
    "categoria": "alimentacao",
    "data": "2026-10-24",
    "descricao": "Supermercado",
-   "id": 27,
+   "id": 28,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 340.0
@@ -195,7 +231,7 @@
    "categoria": "lazer",
    "data": "2026-10-21",
    "descricao": "Jantar fora",
-   "id": 26,
+   "id": 27,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 150.0
@@ -204,7 +240,7 @@
    "categoria": "lazer",
    "data": "2026-10-20",
    "descricao": "Streaming",
-   "id": 9,
+   "id": 10,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 39.9
@@ -213,7 +249,7 @@
    "categoria": "transporte",
    "data": "2026-10-19",
    "descricao": "Aplicativo de transporte",
-   "id": 25,
+   "id": 26,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 110.0
@@ -222,7 +258,7 @@
    "categoria": "freelance",
    "data": "2026-10-18",
    "descricao": "Freela de design",
-   "id": 31,
+   "id": 35,
    "tipo": "renda",
    "usuario_id": 1,
    "valor": 600.0
@@ -231,7 +267,7 @@
    "categoria": "contas_fixas",
    "data": "2026-10-15",
    "descricao": "Internet",
-   "id": 7,
+   "id": 8,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 120.0
@@ -240,7 +276,7 @@
    "categoria": "educacao",
    "data": "2026-10-14",
    "descricao": "Curso online",
-   "id": 24,
+   "id": 25,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 200.0
@@ -249,7 +285,7 @@
    "categoria": "alimentacao",
    "data": "2026-10-12",
    "descricao": "Feira e padaria",
-   "id": 23,
+   "id": 24,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 290.0
@@ -267,7 +303,7 @@
    "categoria": "saude",
    "data": "2026-10-08",
    "descricao": "Farmácia",
-   "id": 22,
+   "id": 23,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 140.0
@@ -276,7 +312,7 @@
    "categoria": "lazer",
    "data": "2026-10-07",
    "descricao": "Cinema e lanche",
-   "id": 21,
+   "id": 22,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 120.0
@@ -285,7 +321,7 @@
    "categoria": "transporte",
    "data": "2026-10-06",
    "descricao": "Combustível",
-   "id": 20,
+   "id": 21,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 95.0
@@ -303,7 +339,7 @@
    "categoria": "alimentacao",
    "data": "2026-10-03",
    "descricao": "Supermercado",
-   "id": 19,
+   "id": 20,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 380.0
@@ -312,7 +348,7 @@
    "categoria": "alimentacao",
    "data": "2026-09-24",
    "descricao": "Supermercado",
-   "id": 18,
+   "id": 19,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 340.0
@@ -321,7 +357,7 @@
    "categoria": "lazer",
    "data": "2026-09-21",
    "descricao": "Jantar fora",
-   "id": 17,
+   "id": 18,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 150.0
@@ -330,7 +366,7 @@
    "categoria": "lazer",
    "data": "2026-09-20",
    "descricao": "Streaming",
-   "id": 8,
+   "id": 9,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 39.9
@@ -339,7 +375,7 @@
    "categoria": "transporte",
    "data": "2026-09-19",
    "descricao": "Aplicativo de transporte",
-   "id": 16,
+   "id": 17,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 110.0
@@ -348,7 +384,7 @@
    "categoria": "contas_fixas",
    "data": "2026-09-15",
    "descricao": "Internet",
-   "id": 6,
+   "id": 7,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 120.0
@@ -357,7 +393,7 @@
    "categoria": "educacao",
    "data": "2026-09-14",
    "descricao": "Curso online",
-   "id": 15,
+   "id": 16,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 200.0
@@ -366,7 +402,7 @@
    "categoria": "alimentacao",
    "data": "2026-09-12",
    "descricao": "Feira e padaria",
-   "id": 14,
+   "id": 15,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 290.0
@@ -384,7 +420,7 @@
    "categoria": "saude",
    "data": "2026-09-08",
    "descricao": "Farmácia",
-   "id": 13,
+   "id": 14,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 140.0
@@ -393,7 +429,7 @@
    "categoria": "lazer",
    "data": "2026-09-07",
    "descricao": "Cinema e lanche",
-   "id": 12,
+   "id": 13,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 120.0
@@ -402,7 +438,7 @@
    "categoria": "transporte",
    "data": "2026-09-06",
    "descricao": "Combustível",
-   "id": 11,
+   "id": 12,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 95.0
@@ -420,7 +456,7 @@
    "categoria": "alimentacao",
    "data": "2026-09-03",
    "descricao": "Supermercado",
-   "id": 10,
+   "id": 11,
    "tipo": "gasto",
    "usuario_id": 1,
    "valor": 380.0
@@ -432,60 +468,96 @@
   "dias_sem_registrar_gasto": 0
  },
  "/api/movimentacoes/capacidade-economia": {
-  "capacidade_economia_mensal": 4125.0
+  "capacidade_economia_mensal": 1995.0
  },
  "/api/movimentacoes/gastos-por-categoria": [
   {
    "categoria": "contas_fixas",
-   "total": 3240.0
+   "total": 4740.0
   },
   {
    "categoria": "alimentacao",
-   "total": 2400.0
+   "total": 2690.0
   },
   {
    "categoria": "lazer",
    "total": 1219.8
   },
   {
+   "categoria": "educacao",
+   "total": 600.0
+  },
+  {
    "categoria": "transporte",
    "total": 505.0
   },
   {
-   "categoria": "educacao",
-   "total": 400.0
-  },
-  {
    "categoria": "saude",
-   "total": 280.0
+   "total": 420.0
   }
  ],
  "/api/movimentacoes/relatorio-mensal": {
   "ano": 2026,
   "itens": [
    {
-    "categoria": "lazer",
-    "data": "2026-11-07",
-    "descricao": "Cinema e lanche",
-    "id": 30,
+    "categoria": "educacao",
+    "data": "2026-11-14",
+    "descricao": "Curso online",
+    "id": 34,
     "tipo": "gasto",
     "usuario_id": 1,
-    "valor": 120.0
+    "valor": 200.0
    },
    {
     "categoria": "lazer",
-    "data": "2026-11-07",
+    "data": "2026-11-14",
     "descricao": "Ingresso de show",
-    "id": 32,
+    "id": 36,
     "tipo": "gasto",
     "usuario_id": 1,
     "valor": 480.0
    },
    {
+    "categoria": "alimentacao",
+    "data": "2026-11-12",
+    "descricao": "Feira e padaria",
+    "id": 33,
+    "tipo": "gasto",
+    "usuario_id": 1,
+    "valor": 290.0
+   },
+   {
+    "categoria": "contas_fixas",
+    "data": "2026-11-10",
+    "descricao": "Aluguel",
+    "id": 6,
+    "tipo": "gasto",
+    "usuario_id": 1,
+    "valor": 1500.0
+   },
+   {
+    "categoria": "saude",
+    "data": "2026-11-08",
+    "descricao": "Farmácia",
+    "id": 32,
+    "tipo": "gasto",
+    "usuario_id": 1,
+    "valor": 140.0
+   },
+   {
+    "categoria": "lazer",
+    "data": "2026-11-07",
+    "descricao": "Cinema e lanche",
+    "id": 31,
+    "tipo": "gasto",
+    "usuario_id": 1,
+    "valor": 120.0
+   },
+   {
     "categoria": "transporte",
     "data": "2026-11-06",
     "descricao": "Combustível",
-    "id": 29,
+    "id": 30,
     "tipo": "gasto",
     "usuario_id": 1,
     "valor": 95.0
@@ -503,42 +575,42 @@
     "categoria": "alimentacao",
     "data": "2026-11-03",
     "descricao": "Supermercado",
-    "id": 28,
+    "id": 29,
     "tipo": "gasto",
     "usuario_id": 1,
     "valor": 380.0
    }
   ],
   "mes": 11,
-  "saldo_periodo": 4125.0,
+  "saldo_periodo": 1995.0,
   "total_entradas": 5200.0,
-  "total_saidas": 1075.0
+  "total_saidas": 3205.0
  },
  "/api/movimentacoes/saldo": {
-  "saldo": 8155.2
+  "saldo": 6025.200000000001
  },
  "/api/movimentacoes/sobrevivencia": {
-  "meses_sobrevivencia": 3.0
+  "meses_sobrevivencia": 1.8
  },
  "/api/orientacao/guia": {
   "composicao_gastos": {
-   "capacidade_mensal": 2518.4,
-   "despesa_flexivel": 1206.6,
-   "despesa_mensal": 2681.6,
-   "despesa_obrigatoria": 1475.0,
+   "capacidade_mensal": 2008.4,
+   "despesa_flexivel": 1303.27,
+   "despesa_mensal": 3391.6,
+   "despesa_obrigatoria": 2088.33,
    "foco": "no_ritmo",
    "maior_gasto_flexivel": {
     "categoria": "alimentacao",
-    "total": 2400.0
+    "total": 896.67
    },
-   "percentual_capacidade": 48.4,
-   "renda_mensal": 5200.0
+   "percentual_capacidade": 37.2,
+   "renda_mensal": 5400.0
   },
-  "mensagem": "Antes de investir, junte uma reserva equivalente a 3x sua despesa média mensal (R$ 8044.80). Faltam R$ 1244.80. Guardando os R$ 2518.40 que sobram por mês, você chega lá em cerca de 1 mês.",
-  "meses_estimados": 1,
+  "mensagem": "Antes de investir, junte uma reserva equivalente a 3x sua despesa média mensal (R$ 10.174,80). Faltam R$ 3.374,80. Guardando os R$ 2.008,40 que sobram por mês, você chega lá em cerca de 2 meses.",
+  "meses_estimados": 2,
   "passo": "construir_reserva",
   "reserva": {
-   "despesa_media_mensal": 2681.6,
+   "despesa_media_mensal": 3391.6,
    "onde_guardar": {
     "atualizado_em": "01/01/2026",
     "ipca": 5.0,
@@ -576,7 +648,7 @@
    "possui_reserva": true,
    "reserva": {
     "id": 1,
-    "prazo": "2027-07-05",
+    "prazo": "2027-07-12",
     "progresso": 64.8,
     "tipo": "reserva_emergencia",
     "titulo": "Reserva de emergência",
@@ -586,9 +658,9 @@
    },
    "sugestoes_investimento_liberadas": false,
    "valor_guardado": 6800.0,
-   "valor_ideal_reserva": 8044.8
+   "valor_ideal_reserva": 10174.8
   },
-  "saldo": 8155.2,
+  "saldo": 6025.200000000001,
   "titulo": "Construa sua reserva de emergência"
  },
  "/api/orientacao/score": {
@@ -596,38 +668,38 @@
   "detalhes": {
    "controle_gastos": 250.0,
    "cumprimento_metas": 125.0,
-   "reserva_emergencia": 211.3,
+   "reserva_emergencia": 167.1,
    "saldo": 250.0
   },
-  "score": 836,
+  "score": 792,
   "score_maximo": 1000
  },
  "/api/orientacao/score/historico": {
   "dias": 90,
   "historico": [
    {
-    "data": "2026-09-12",
-    "score": 666
+    "data": "2026-09-19",
+    "score": 622
    },
    {
-    "data": "2026-09-26",
-    "score": 706
+    "data": "2026-10-03",
+    "score": 662
    },
    {
-    "data": "2026-10-10",
-    "score": 746
-   },
-   {
-    "data": "2026-10-24",
-    "score": 786
+    "data": "2026-10-17",
+    "score": 702
    },
    {
     "data": "2026-10-31",
-    "score": 816
+    "score": 742
    },
    {
     "data": "2026-11-07",
-    "score": 836
+    "score": 772
+   },
+   {
+    "data": "2026-11-14",
+    "score": 792
    }
   ],
   "variacao": 170
@@ -653,7 +725,7 @@
    "dia_mes": 10,
    "id": 2,
    "tipo": "gasto",
-   "ultimo_mes_lancado": "2026-10",
+   "ultimo_mes_lancado": "2026-11",
    "usuario_id": 1,
    "valor": 1500.0
   },
@@ -684,7 +756,7 @@
  ],
  "/api/usuarios/me": {
   "consentimento_aceito": true,
-  "consentimento_em": "2026-11-07T12:27:03.963009",
+  "consentimento_em": "2026-11-14T00:16:21.647601",
   "consentimento_versao": "1.1",
   "despesa_fixa_estimada": 1660.0,
   "despesa_mensal_estimada": 3500.0,

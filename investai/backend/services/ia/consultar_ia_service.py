@@ -14,6 +14,7 @@ from services.movimentacao.calcular_gastos_por_categoria_service import (
     CalcularGastosPorCategoriaService,
 )
 from services.movimentacao.calcular_saldo_service import CalcularSaldoService
+from services.movimentacao.calcular_renda_media_service import CalcularRendaMediaService
 from services.usuario.calcular_score_financeiro_service import (
     CalcularScoreFinanceiroService,
 )
@@ -116,7 +117,9 @@ class ConsultarIaService:
         return {
             "nome": usuario.nome,
             "perfil_risco": usuario.perfil_risco,
-            "renda_mensal": usuario.renda_mensal,
+            # Mesma renda do guia financeiro: a média real registrada, ou a
+            # do cadastro enquanto não houver receita registrada.
+            "renda_mensal": round(CalcularRendaMediaService().executar(usuario_id), 2),
             "saldo": CalcularSaldoService().executar(usuario_id),
             "capacidade_economia_mensal": CalcularCapacidadeEconomiaService().executar(usuario_id),
             "gastos_por_categoria": CalcularGastosPorCategoriaService().executar(usuario_id),

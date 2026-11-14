@@ -158,10 +158,16 @@ CARTEIRA_POR_PERFIL = {
     ],
 }
 
+def _reais(valor):
+    """Valor em reais no formato brasileiro: R$ 3.887,80."""
+    numero = f"{abs(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{'-' if valor < 0 else ''}R$ {numero}"
+
+
 RESUMO_INDEXADOR = {
-    "selic": "Rende hoje ~{taxa:.2f}% ao ano (Taxa Selic).",
-    "cdi": "Rende hoje ~{taxa:.2f}% ao ano (100% do CDI).",
-    "ipca": "Rende IPCA + prêmio; a inflação (IPCA) acumulada em 12 meses está em ~{taxa:.2f}%.",
+    "selic": "Rende hoje ~{taxa}% ao ano (Taxa Selic).",
+    "cdi": "Rende hoje ~{taxa}% ao ano (100% do CDI).",
+    "ipca": "Rende IPCA + prêmio; a inflação (IPCA) acumulada em 12 meses está em ~{taxa}%.",
 }
 
 
@@ -237,8 +243,8 @@ class GerarGuiaFinanceiroService:
         base = (
             f"Antes de investir, junte uma reserva equivalente a "
             f"{MULTIPLICADOR_RESERVA_EMERGENCIA}x sua despesa média mensal "
-            f"(R$ {reserva['valor_ideal_reserva']:.2f}). "
-            f"Faltam R$ {faltante:.2f}."
+            f"({_reais(reserva['valor_ideal_reserva'])}). "
+            f"Faltam {_reais(faltante)}."
         )
 
         if not composicao:
@@ -255,24 +261,34 @@ class GerarGuiaFinanceiroService:
                 onde = (
                     f" Seu maior gasto ajustável é "
                     f"{ROTULOS_CATEGORIA.get(maior['categoria'], maior['categoria'])} "
-                    f"(R$ {maior['total']:.2f}) - reduzir aí é o que mais acelera "
+                    f"({_reais(maior['total'])} por mês) - reduzir aí é o que mais acelera "
                     f"sua reserva."
                 )
             else:
                 onde = (
-                    f" Mas R$ {composicao['despesa_flexivel']:.2f} dos seus gastos não "
+                    f" Mas {_reais(composicao['despesa_flexivel'])} dos seus gastos não "
                     f"são fixos: é aí que dá para ganhar tempo. Registre suas despesas "
                     f"por categoria que eu te mostro onde cortar."
                 )
-            return (
-                f"{base} Hoje sobram R$ {capacidade:.2f} por mês "
-                f"({composicao['percentual_capacidade']:.0f}% da sua renda), o que é "
-                f"pouco para essa meta.{onde}"
-            )
+            if capacidade < 0:
+                # "Sobram R$ -562,60" não faz sentido para ninguém.
+                situacao = (
+                    f" Hoje seus gastos passam da sua renda em {_reais(-capacidade)} "
+                    f"por mês, então ainda não sobra nada para guardar."
+                )
+            elif capacidade == 0:
+                situacao = " Hoje sua renda fica toda nos gastos do mês, sem sobra para guardar."
+            else:
+                situacao = (
+                    f" Hoje sobram {_reais(capacidade)} por mês "
+                    f"({composicao['percentual_capacidade']:.0f}% da sua renda), o que é "
+                    f"pouco para essa meta."
+                )
+            return f"{base}{situacao}{onde}"
 
         if foco == "aumentar_renda":
             return (
-                f"{base} Das suas despesas, R$ {composicao['despesa_obrigatoria']:.2f} "
+                f"{base} Das suas despesas, {_reais(composicao['despesa_obrigatoria'])} "
                 f"são fixas (moradia, transporte, saúde, educação) - ou seja, quase "
                 f"não há o que cortar, e tentar cortar não vai resolver. Sua reserva "
                 f"vai ser construída devagar mesmo, e tudo bem: guarde o que der, no "
@@ -282,7 +298,7 @@ class GerarGuiaFinanceiroService:
         meses = self._meses_para_juntar(faltante, composicao)
         if meses:
             return (
-                f"{base} Guardando os R$ {capacidade:.2f} que sobram por mês, você "
+                f"{base} Guardando os {_reais(capacidade)} que sobram por mês, você "
                 f"chega lá em cerca de {meses} "
                 f"{'mês' if meses == 1 else 'meses'}."
             )
@@ -303,7 +319,7 @@ class GerarGuiaFinanceiroService:
             indexador = item.get("indexador")
             descricao = item["descricao_base"]
             if indexador and taxas and taxas.get(indexador) is not None:
-                descricao = f"{descricao} {RESUMO_INDEXADOR[indexador].format(taxa=taxas[indexador])}"
+                descricao = f"{descricao} {RESUMO_INDEXADOR[indexador].format(taxa=f"{taxas[indexador]:.2f}".replace(".", ","))}"
             sugestoes.append({
                 "nome": item["nome"],
                 "tipo": item["tipo"],

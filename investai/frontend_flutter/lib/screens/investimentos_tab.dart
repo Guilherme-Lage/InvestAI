@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../conteudo/licoes.dart';
 import '../models/investimento.dart';
@@ -9,6 +8,7 @@ import '../theme.dart';
 import '../utils/formato_moeda.dart';
 import '../widgets/glossario.dart';
 import '../widgets/robo_assistente.dart';
+import '../widgets/score_financeiro.dart';
 import 'chat_ia_screen.dart';
 import 'trilha_aprendizado_screen.dart';
 
@@ -199,12 +199,18 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
                       ],
 
                       // 2. Onde ele está na jornada e qual é o próximo passo.
-                      _SecaoSugestoes(guia: _guia, reais: _reais),
-                      const SizedBox(height: 12),
-                      _CartaoAprendizado(
-                        contexto: ContextoLicao.dosDados(_guia, _taxas),
-                        concluidas: _licoesConcluidas,
-                        onAbrir: _abrirTrilha,
+                      // O passo a passo (trilha + lições) fica sempre logo
+                      // abaixo dos passos, antes das sugestões: com a reserva
+                      // completa a lista de sugestões é longa e empurrava as
+                      // lições para o fim da aba, onde ninguém as achava.
+                      _SecaoSugestoes(
+                        guia: _guia,
+                        reais: _reais,
+                        aprendizado: _CartaoAprendizado(
+                          contexto: ContextoLicao.dosDados(_guia, _taxas),
+                          concluidas: _licoesConcluidas,
+                          onAbrir: _abrirTrilha,
+                        ),
                       ),
 
                       // 3. Ferramenta e referência: ficam fechadas para não
@@ -227,7 +233,7 @@ class _InvestimentosTabState extends State<InvestimentosTab> {
                           icone: Icons.speed_rounded,
                           titulo: 'Seu score financeiro',
                           resumo: '${_score!['score']} de 1000 · ${_score!['classificacao']}',
-                          child: _ScoreCard(
+                          child: ScoreFinanceiroCard(
                               score: _score!,
                               historico: _historicoScore,
                               semMoldura: true),
@@ -829,191 +835,6 @@ class _InvestimentoCard extends StatelessWidget {
   }
 }
 
-/// RF20 - score financeiro em escala 0-1000 (padrão score de crédito),
-/// com classificação qualitativa (Ruim/Regular/Bom/Excelente).
-class _ScoreCard extends StatelessWidget {
-  final Map<String, dynamic> score;
-  final Map<String, dynamic>? historico;
-  final bool semMoldura;
-  const _ScoreCard({required this.score, this.historico, this.semMoldura = false});
-
-  Color get _cor {
-    final valor = (score['score'] ?? 0) as int;
-    if (valor >= 650) return InvestAITheme.verde;
-    if (valor >= 400) return const Color(0xFFFFB020);
-    return InvestAITheme.vermelho;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final valor = (score['score'] ?? 0) as int;
-    final maximo = (score['score_maximo'] ?? 1000) as int;
-    final classificacao = score['classificacao'] ?? '';
-    final progresso = maximo > 0 ? (valor / maximo).clamp(0.0, 1.0) : 0.0;
-
-    return Container(
-      width: double.infinity,
-      // Sem moldura quando está dentro de uma seção recolhível, que já
-      // desenha o card - senão fica card dentro de card.
-      padding: EdgeInsets.all(semMoldura ? 0 : 18),
-      decoration: semMoldura
-          ? null
-          : BoxDecoration(
-              color: InvestAITheme.card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: InvestAITheme.borda),
-            ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!semMoldura) ...[
-            Text('Score financeiro',
-                style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza)),
-            const SizedBox(height: 8),
-          ],
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('$valor',
-                  style: GoogleFonts.inter(fontSize: 30, fontWeight: FontWeight.w800, color: _cor)),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 5, left: 4),
-                child: Text('de $maximo · $classificacao',
-                    style: GoogleFonts.inter(
-                        fontSize: 12.5, fontWeight: FontWeight.w600, color: InvestAITheme.cinza)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progresso,
-              minHeight: 8,
-              backgroundColor: InvestAITheme.borda,
-              valueColor: AlwaysStoppedAnimation(_cor),
-            ),
-          ),
-          if (historico != null) ...[
-            const SizedBox(height: 18),
-            _EvolucaoScore(historico: historico!, cor: _cor),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Evolução do score ao longo do tempo. Cada ponto é um dia em que o
-/// usuário abriu esta aba, então o gráfico começa vazio e vai se formando
-/// com o uso - não há como calcular o score de datas passadas.
-class _EvolucaoScore extends StatelessWidget {
-  final Map<String, dynamic> historico;
-  final Color cor;
-  const _EvolucaoScore({required this.historico, required this.cor});
-
-  String _dataCurta(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
-
-  @override
-  Widget build(BuildContext context) {
-    final pontos = ((historico['historico'] as List?) ?? [])
-        .cast<Map<String, dynamic>>()
-        .map((p) => (DateTime.tryParse(p['data'] ?? ''), (p['score'] as num).toDouble()))
-        .where((p) => p.$1 != null)
-        .map((p) => (p.$1!, p.$2))
-        .toList();
-
-    final titulo = Text('Evolução',
-        style: GoogleFonts.inter(
-            fontSize: 12.5, fontWeight: FontWeight.w700, color: InvestAITheme.texto));
-
-    if (pontos.length < 2) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          titulo,
-          const SizedBox(height: 4),
-          Text(
-            'Seu histórico começa hoje. Volte nos próximos dias para ver '
-            'como o score evolui.',
-            style: GoogleFonts.inter(fontSize: 12, color: InvestAITheme.cinza, height: 1.4),
-          ),
-        ],
-      );
-    }
-
-    final variacao = ((historico['variacao'] ?? 0) as num).round();
-    final corVariacao = variacao > 0
-        ? InvestAITheme.verde
-        : variacao < 0
-            ? InvestAITheme.vermelho
-            : InvestAITheme.cinza;
-    final textoVariacao = variacao == 0
-        ? 'estável'
-        : '${variacao > 0 ? '+' : ''}$variacao pontos';
-
-    final inicio = pontos.first.$1;
-    final valores = pontos.map((p) => p.$2).toList();
-    final minimo = valores.reduce((a, b) => a < b ? a : b);
-    final maximo = valores.reduce((a, b) => a > b ? a : b);
-    // Folga para a linha não encostar nas bordas (e para um score que não
-    // mudou não virar um gráfico de altura zero).
-    final folga = (maximo - minimo) * 0.15 + 20;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(child: titulo),
-            Text('$textoVariacao desde ${_dataCurta(inicio)}',
-                style: GoogleFonts.inter(
-                    fontSize: 12, fontWeight: FontWeight.w700, color: corVariacao)),
-          ],
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 80,
-          child: LineChart(
-            LineChartData(
-              minY: minimo - folga,
-              maxY: maximo + folga,
-              gridData: const FlGridData(show: false),
-              titlesData: const FlTitlesData(show: false),
-              borderData: FlBorderData(show: false),
-              lineTouchData: const LineTouchData(enabled: false),
-              lineBarsData: [
-                LineChartBarData(
-                  // Eixo X em dias corridos: dias sem consulta viram um
-                  // trecho mais longo, em vez de parecerem dias seguidos.
-                  spots: [
-                    for (final p in pontos)
-                      FlSpot(p.$1.difference(inicio).inDays.toDouble(), p.$2),
-                  ],
-                  barWidth: 2.5,
-                  color: cor,
-                  dotData: FlDotData(show: pontos.length <= 15),
-                  belowBarData: BarAreaData(show: true, color: cor.withOpacity(0.12)),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(_dataCurta(inicio),
-                style: GoogleFonts.inter(fontSize: 10, color: InvestAITheme.cinza)),
-            Text('hoje', style: GoogleFonts.inter(fontSize: 10, color: InvestAITheme.cinza)),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
 /// Taxas oficiais atuais (Selic, CDI e IPCA acumulado em 12 meses), direto
 /// do Banco Central — dado real usado para contextualizar as sugestões de
 /// investimento (RF16), já que o app não executa investimentos de verdade.
@@ -1087,7 +908,16 @@ class _MercadoAgora extends StatelessWidget {
 class _SecaoSugestoes extends StatelessWidget {
   final Map<String, dynamic>? guia;
   final String Function(num) reais;
-  const _SecaoSugestoes({required this.guia, required this.reais});
+
+  /// Cartão da trilha "Aprenda a investir", mostrado logo depois dos passos
+  /// em qualquer etapa do guia (antes ou depois da reserva completa).
+  final Widget aprendizado;
+
+  const _SecaoSugestoes({
+    required this.guia,
+    required this.reais,
+    required this.aprendizado,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1129,7 +959,9 @@ class _SecaoSugestoes extends StatelessWidget {
               ? 'Liberadas para o seu perfil'
               : 'Libera automaticamente quando os passos acima estiverem concluídos (RF15)',
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
+        aprendizado,
+        const SizedBox(height: 16),
 
         if (!liberado)
           Container(
@@ -1905,6 +1737,9 @@ class _CartaoAprendizado extends StatelessWidget {
                     const Icon(Icons.chevron_right_rounded, color: InvestAITheme.cinza, size: 20),
                   ],
                 ),
+                const SizedBox(height: 4),
+                Text('Passo a passo, do básico até comprar seu primeiro investimento.',
+                    style: GoogleFonts.inter(fontSize: 11.5, color: InvestAITheme.cinza, height: 1.4)),
                 const SizedBox(height: 10),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),

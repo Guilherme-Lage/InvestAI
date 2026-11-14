@@ -286,8 +286,12 @@ relação ao DER estão explicadas na seção 1).
 ### Evolução do score
 - **Como funciona.** O score é recalculado a cada consulta e não tem passado. Para
   desenhar o gráfico, grava-se um retrato por dia em `score_historico`, no momento em
-  que o usuário abre a aba Investir
+  que o usuário abre a tela Início ou a aba Investir
   ([listar_historico_score_service.py](../backend/services/usuario/listar_historico_score_service.py)).
+- **Onde aparece.** Em destaque na tela Início, logo abaixo do saldo, e recolhido nas
+  ferramentas da aba Investir. Os dois usam o mesmo componente
+  ([score_financeiro.dart](../frontend_flutter/lib/widgets/score_financeiro.dart)), que
+  mostra também as quatro partes da nota e uma dica para a parte com mais pontos a ganhar.
 - **Limitação.** O gráfico começa vazio para conta nova e só ganha linha a partir do
   segundo dia de uso.
 
@@ -357,6 +361,12 @@ relação ao DER estão explicadas na seção 1).
 - **Por que mandar o resumo.** Sem ele a resposta seria genérica, que foi a principal
   queixa da pesquisa com usuários. O resumo inclui se a pessoa já pode investir, para a
   IA respeitar a regra da reserva.
+- **Só fala de finanças.** As instruções do agente
+  ([investai_agente.json](../n8n/investai_agente.json), seção `[ESCOPO]` e o lembrete
+  depois da pergunta) mandam recusar, em até duas frases, qualquer assunto fora de
+  dinheiro, investimentos e do próprio app (receitas, lição de casa, esportes, saúde...),
+  mesmo que a pessoa peça para ignorar as regras. Antes ela respondia a pergunta inteira.
+  Ao mudar o prompt, atualize também o workflow publicado no n8n.
 - **Se o n8n estiver fora do ar,** a rota responde com erro tratado e o chat mostra um
   aviso; o resto do app continua funcionando.
 

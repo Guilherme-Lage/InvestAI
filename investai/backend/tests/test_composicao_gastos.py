@@ -79,6 +79,64 @@ class TesteComposicaoGastos(TesteComBanco):
         self.assertAlmostEqual(r["despesa_flexivel"], 0.0, places=2)
         self.assertGreater(r["despesa_obrigatoria"], 0)
 
+    def test_renda_registrada_tem_prioridade_sobre_a_do_cadastro(self):
+        """Caso real da conta demo: cadastro com R$ 3.000, salário registrado
+        de R$ 5.200 e despesa de R$ 3.500. Comparando o cadastro com a
+        despesa real, o guia dizia que sobravam R$ -500 por mês."""
+        usuario = self.criar_usuario(renda_mensal=3000)
+        for dias in (10, 40, 70):
+            self.criar_renda(usuario, 5200, dias_atras=dias)
+            self.criar_gasto(usuario, 3500, categoria="contas_fixas", dias_atras=dias)
+
+        r = self.service.executar(usuario.id)
+
+        self.assertAlmostEqual(r["renda_mensal"], 5200.0, places=2)
+        self.assertAlmostEqual(r["capacidade_mensal"], 1700.0, places=2)
+
+    def test_sem_renda_registrada_usa_a_do_cadastro(self):
+        usuario = self.criar_usuario(renda_mensal=4000)
+        for dias in (10, 40, 70):
+            self.criar_gasto(usuario, 3000, categoria="contas_fixas", dias_atras=dias)
+
+        r = self.service.executar(usuario.id)
+
+        self.assertAlmostEqual(r["renda_mensal"], 4000.0, places=2)
+        self.assertAlmostEqual(r["capacidade_mensal"], 1000.0, places=2)
+
+    def test_maior_gasto_ajustavel_vem_em_valor_mensal(self):
+        """O total por categoria é do histórico inteiro; mostrado cru, três
+        meses de mercado pareciam um gasto de um mês só."""
+        usuario = self.criar_usuario(renda_mensal=5000)
+        for dias in (10, 40, 70):
+            self.criar_gasto(usuario, 1000, categoria="alimentacao", dias_atras=dias)
+            self.criar_gasto(usuario, 2000, categoria="contas_fixas", dias_atras=dias)
+
+        r = self.service.executar(usuario.id)
+
+        self.assertEqual(r["maior_gasto_flexivel"]["categoria"], "alimentacao")
+        self.assertAlmostEqual(r["maior_gasto_flexivel"]["total"], 1000.0, delta=1)
+
+    def test_ajuste_de_saldo_do_extrato_nao_conta_como_renda_nem_gasto(self):
+        """A importação de extrato grava o dinheiro que já estava na conta
+        como um lançamento `saldo_inicial`. Ele conta no saldo, mas não é
+        renda nem despesa do mês: somado às médias, R$ 9.000 na conta
+        viravam R$ 3.000 de "renda" por mês."""
+        usuario = self.criar_usuario(renda_mensal=0)
+        for dias in (10, 40, 70):
+            self.criar_renda(usuario, 4000, dias_atras=dias)
+            self.criar_gasto(usuario, 3000, categoria="contas_fixas", dias_atras=dias)
+        ajuste = self.criar_renda(usuario, 9000, dias_atras=80)
+        ajuste.atualizar(categoria="saldo_inicial")
+        ajuste_negativo = self.criar_gasto(usuario, 6000, categoria="saldo_inicial", dias_atras=80)
+
+        r = self.service.executar(usuario.id)
+
+        self.assertAlmostEqual(r["renda_mensal"], 4000.0, places=2)
+        self.assertAlmostEqual(r["despesa_mensal"], 3000.0, places=2)
+        self.assertAlmostEqual(r["capacidade_mensal"], 1000.0, places=2)
+        self.assertIsNone(r["maior_gasto_flexivel"])  # só gasto fixo além do ajuste
+        self.assertIsNotNone(ajuste_negativo.id)
+
 
 if __name__ == "__main__":
     unittest.main()

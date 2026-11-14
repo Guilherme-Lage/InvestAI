@@ -72,6 +72,38 @@ void main() {
     });
   }
 
+  group('Início', () {
+    testeDeTela('mostra o score em destaque, com a composição e uma dica',
+        (tester, api) async {
+      await montarTela(
+        tester,
+        api,
+        DashboardTab(usuario: _usuario(api), onVerTodasMetas: () {}),
+      );
+      final score = api.resposta('/api/orientacao/score');
+
+      await rolarAte(tester, find.text('Seu score financeiro'));
+      expect(find.text('${score['score']}'), findsOneWidget);
+      expect(find.text('${score['classificacao']}'), findsOneWidget);
+      await rolarAte(tester, find.text('O que compõe sua nota'));
+      expect(find.text('Reserva de emergência'), findsOneWidget);
+      // Na conta demo as metas são a parte com mais pontos a ganhar.
+      await rolarAte(tester, find.textContaining('Para subir até'));
+      expect(find.textContaining('Conclua suas metas'), findsOneWidget);
+    });
+
+    testeDeTela('sem o score, o resto da tela continua aparecendo', (tester, api) async {
+      api.responder('/api/orientacao/score', null);
+      await montarTela(
+        tester,
+        api,
+        DashboardTab(usuario: _usuario(api), onVerTodasMetas: () {}),
+      );
+      expect(find.text('Saldo disponível'), findsOneWidget);
+      expect(find.text('Seu score financeiro'), findsNothing);
+    });
+  });
+
   group('Relatório', () {
     testeDeTela('"Repetir todo mês" cadastra uma recorrência, não uma transação avulsa',
         (tester, api) async {
@@ -362,6 +394,44 @@ void main() {
       await rolarAte(tester, find.text('Tesouro IPCA+ (longo)'));
       expect(find.text('Risco alto'), findsWidgets);
       expect(find.text('Saque no vencimento'), findsOneWidget);
+    });
+
+    testeDeTela('com a reserva completa, o passo a passo continua logo abaixo da trilha',
+        (tester, api) async {
+      // Antes, as sugestões liberadas entravam antes das lições e empurravam
+      // o "Aprenda a investir" para o fim da aba.
+      final guia = Map<String, dynamic>.from(api.resposta('/api/orientacao/guia'));
+      api.responder('/api/orientacao/guia', {
+        ...guia,
+        'passo': 'pronto_para_investir',
+        'perfil_risco': 'conservador',
+        'reserva': {
+          ...(guia['reserva'] as Map<String, dynamic>),
+          'sugestoes_investimento_liberadas': true,
+        },
+        'sugestoes_investimento': [
+          for (final nome in ['Tesouro Selic', 'CDB', 'LCI e LCA', 'Fundo DI'])
+            {
+              'nome': nome,
+              'tipo': 'Renda fixa',
+              'risco': 'baixo',
+              'prazo': 'curto',
+              'liquidez': 'diaria',
+              'motivo': 'Motivo de $nome.',
+              'descricao': 'Descrição de $nome.',
+            },
+        ],
+        'carteira_sugerida': [
+          {'classe': 'Renda fixa pós-fixada (Selic/CDI)', 'percentual': 100},
+        ],
+      });
+      await montarTela(tester, api, const InvestimentosTab());
+
+      await rolarAte(tester, find.text('Aprenda a investir'));
+      expect(find.text('Sugestões personalizadas'), findsOneWidget);
+      final topoAprendizado = tester.getTopLeft(find.text('Aprenda a investir')).dy;
+      final topoSugestoes = tester.getTopLeft(find.text('Para começar, considere')).dy;
+      expect(topoAprendizado, lessThan(topoSugestoes));
     });
 
     testeDeTela('o score mostra a evolução quando há histórico', (tester, api) async {

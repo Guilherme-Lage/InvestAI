@@ -85,7 +85,7 @@ as duas Services que já existem."
 `reserva_emergencia` com SQL. Os investimentos são liberados quando o valor guardado
 alcança a meta ideal: é a variável `liberado`."
 
-## 6. Score de 0 a 1000 — aba Investir
+## 6. Score de 0 a 1000 — tela Início (e aba Investir)
 
 | Camada | Abrir |
 |---|---|

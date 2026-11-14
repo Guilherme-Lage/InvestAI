@@ -14,6 +14,10 @@ ORDENACOES_VALIDAS = {
     "valor_desc": "valor DESC",
 }
 
+# Categoria do lançamento que a importação de extrato cria para o saldo do
+# app bater com o do banco (ver analisar_extrato_service._ajuste_de_saldo).
+CATEGORIA_AJUSTE_SALDO = "saldo_inicial"
+
 
 class MovimentacaoRepository:
     """Consultas específicas de Movimentacao que vão além do CRUD básico
@@ -115,11 +119,37 @@ class MovimentacaoRepository:
         (considerando a data de hoje como referência). Usada para calcular
         a capacidade de sobrevivência financeira (RF09) e a meta de reserva
         de emergência (RF14/RF15)."""
+        return MovimentacaoRepository._media_mensal(usuario_id, "gasto", meses)
+
+    @staticmethod
+    def media_rendas_mensais(usuario_id, meses=3):
+        """Média de receitas mensais nos últimos `meses` meses, na mesma
+        janela de media_gastos_mensais - para renda e despesa serem
+        comparadas na mesma escala."""
+        return MovimentacaoRepository._media_mensal(usuario_id, "renda", meses)
+
+    @staticmethod
+    def _media_mensal(usuario_id, tipo, meses):
+        """Fica de fora o ajuste de saldo da importação de extrato
+        (categoria `saldo_inicial`): ele representa o dinheiro que já estava
+        na conta, não uma receita ou despesa do mês. Conta no saldo, mas
+        somado às médias viraria "renda" ou "despesa" de milhares de reais."""
         hoje = date.today()
-        data_inicio = (hoje - timedelta(days=30 * meses)).isoformat()
-        total = MovimentacaoRepository.somar_por_tipo(
-            usuario_id, "gasto", data_inicio=data_inicio, data_fim=hoje.isoformat()
-        )
+        sql = text("""
+            SELECT COALESCE(SUM(valor), 0.0) AS total
+            FROM movimentacao
+            WHERE usuario_id = :usuario_id
+              AND tipo = :tipo
+              AND (categoria IS NULL OR categoria != :ajuste)
+              AND data >= :data_inicio
+              AND data <= :data_fim
+        """)
+        total = db.session.execute(sql, {
+            "usuario_id": usuario_id, "tipo": tipo, "ajuste": CATEGORIA_AJUSTE_SALDO,
+            "data_inicio": (hoje - timedelta(days=30 * meses)).isoformat(),
+            "data_fim": hoje.isoformat(),
+        }).scalar()
+        total = float(total or 0.0)
         return total / meses if meses else 0.0
 
     @staticmethod

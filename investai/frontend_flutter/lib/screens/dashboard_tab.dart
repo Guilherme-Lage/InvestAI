@@ -6,11 +6,13 @@ import '../models/meta.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/aviso_questionario_pendente.dart';
+import '../widgets/score_financeiro.dart';
 import 'questionario_suitability_screen.dart';
 
-/// Início: RF05 (saldo em tempo real), RF08 (capacidade de economia),
-/// RF09 (tempo de sobrevivência), prévia das metas (RF06/RF07) e o guia
-/// financeiro (RF16) em destaque, como um assistente/treinador financeiro.
+/// Início: RF05 (saldo em tempo real), RF20 (score financeiro, logo abaixo
+/// do saldo), RF08 (capacidade de economia), RF09 (tempo de sobrevivência),
+/// prévia das metas (RF06/RF07) e o guia financeiro (RF16) em destaque,
+/// como um assistente/treinador financeiro.
 class DashboardTab extends StatefulWidget {
   final Usuario usuario;
   final VoidCallback onVerTodasMetas;
@@ -40,6 +42,8 @@ class _DashboardTabState extends State<DashboardTab> {
   List<Meta> _metas = [];
   Map<String, dynamic>? _guia;
   Map<String, dynamic>? _dolar;
+  Map<String, dynamic>? _score;
+  Map<String, dynamic>? _historicoScore;
 
   @override
   void initState() {
@@ -76,6 +80,24 @@ class _DashboardTabState extends State<DashboardTab> {
         _carregando = false;
       });
       return;
+    }
+
+    // Score e evolução: carregados à parte, para uma falha neles não
+    // esconder o saldo e o resto da tela. Sem score, o card só não aparece.
+    try {
+      final score = await ApiService.scoreFinanceiro();
+      if (!mounted) return;
+      setState(() => _score = score);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _score = null);
+    }
+    try {
+      final historico = await ApiService.historicoScore();
+      if (!mounted) return;
+      setState(() => _historicoScore = historico);
+    } catch (_) {
+      // sem histórico agora; o score atual continua aparecendo
     }
 
     // Cotação do dólar é dado de mercado externo: carregada à parte para
@@ -153,6 +175,13 @@ class _DashboardTabState extends State<DashboardTab> {
           // RF05 - saldo disponível
           _SaldoCard(saldo: _saldo, reais: _reais),
           const SizedBox(height: 12),
+
+          // RF20 - score financeiro em destaque, com o que compõe a nota e
+          // o que fazer para ela subir.
+          if (_score != null) ...[
+            ScoreFinanceiroCard(score: _score!, historico: _historicoScore),
+            const SizedBox(height: 12),
+          ],
 
           // RF08 - capacidade de economia mensal + RF09 - sobrevivência
           Row(
